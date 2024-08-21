@@ -1,0 +1,7 @@
+<launch>
+    <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch"/>
+    <node pkg="kurrier" type="velodyne_cluster.py" name="SCANCluster"/>
+    <include file="$(find imu_modifier)/launch/run.launch"/>
+    <include file="$(find liorf)/launch/run_morai.launch"/>
+</launch>
+

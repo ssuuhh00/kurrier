@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="kurrier" type="path_odom.py" name="odom"/>
+    <node pkg="kurrier" type="path_maker.py" name="path_maker" output="screen"/>      
+</launch>
+

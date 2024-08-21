@@ -1,0 +1,9 @@
+<launch>
+    <node pkg="kurrier" type="odom.py" name="odom" output="screen"/>
+    <node pkg="kurrier" type="mission.py" name="mission"/>
+    <node pkg="kurrier" type="planning.py" name="planning"/>
+    <node pkg="kurrier" type="lattice_planner.py" name="lattice_planner"/> 
+    <node pkg="kurrier" type="yolo.py" name="yolo"/>
+    <node pkg="kurrier" type="control.py" name="control"/>
+</launch>
+
