@@ -1,2 +1,1 @@
 float32 mission_num
-boolean is_waiting_time

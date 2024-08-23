@@ -74,27 +74,32 @@ class pure_pursuit :
                             break
                 
                 theta=atan2(local_path_point[1],local_path_point[0])
-                default_vel = 18
+                default_vel = 15
                 if self.is_look_forward_point :
+
+                    self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)  
+                    normalized_steer = abs(self.ctrl_cmd_msg.steering)/0.6981          
+                    
                     if self.is_waiting_time:               
                         self.ctrl_cmd_msg.velocity = 0
-                    else:
-                        self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)  
-                        normalized_steer = abs(self.ctrl_cmd_msg.steering)/0.6981          
-                        self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.7*normalized_steer)
                         
-                        if self.mission_info.mission_num == 7 and (self.traffic_light_color==0):
-                            self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
-                        elif self.mission_info.mission_num == 7 and (self.traffic_light_color==1 or self.traffic_light_color==2):
-                            self.ctrl_cmd_msg.velocity = 0.0
-                        elif self.mission_info.mission_num == 7 and self.traffic_light_color==3:
+                    elif self.mission_info.mission_num == 7:
+                        
+                        if  self.traffic_light_color==0:
+                            self.ctrl_cmd_msg.velocity = 0.7 * default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
+                        elif self.traffic_light_color==1 or self.traffic_light_color==2:
+                            self.ctrl_cmd_msg.velocity = 0
+                           
+                        elif self.traffic_light_color==3:
                             self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
-        
-                        os.system('clear')
-                        print("-------------------------------------")
-                        print(" steering (deg) = ", self.ctrl_cmd_msg.steering * 180/pi)
-                        print(" velocity (kph) = ", self.ctrl_cmd_msg.velocity)
-                        print("-------------------------------------")
+                    else :
+                            self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.7*normalized_steer)
+                        
+                    # os.system('clear')
+                    # print("-------------------------------------")
+                    # print(" steering (deg) = ", self.ctrl_cmd_msg.steering * 180/pi)
+                    # print(" velocity (kph) = ", self.ctrl_cmd_msg.velocity)
+                    # print("-------------------------------------")
                 else : 
                     print("no found forward point")
                     self.ctrl_cmd_msg.steering=0.0
@@ -102,12 +107,12 @@ class pure_pursuit :
                 
                 self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
 
-            else:
-                os.system('clear')
-                if not self.is_path:
-                    print("[1] can't subscribe '/local_path' topic...")
-                if not self.is_odom:
-                    print("[2] can't subscribe '/odom' topic...")
+            # else:
+            #     os.system('clear')
+            #     if not self.is_path:
+            #         print("[1] can't subscribe '/local_path' topic...")
+            #     if not self.is_odom:
+            #         print("[2] can't subscribe '/odom' topic...")
             
             self.is_path = self.is_odom = False
             rate.sleep()

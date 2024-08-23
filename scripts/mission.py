@@ -31,7 +31,7 @@ class MissionNode:
         # Define missions with coordinates
         self.missions = [
             {'mission_number': 0, 'x': -93.40589900134364, 'y': 17.37121018813923},
-            {'mission_number': 1, 'x': -118.02613825938897, 'y': 10.89159974316135},
+            {'mission_number': 1, 'x': -118.53937525855144, 'y': 4.976131527218968},
             {'mission_number': 2, 'x': -147.8114318390144, 'y': 28.72403534920886},
             {'mission_number': 3, 'x': -147.366516067239, 'y': 78.13069733697921},
             {'mission_number': 4, 'x': -72.11734004126629, 'y': 111.0132733262144},
