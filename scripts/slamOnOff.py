@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import rospy
-from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Point
 from kurrier.msg import mission  # 사용자 정의 메시지 임포트
 import subprocess
 import time
