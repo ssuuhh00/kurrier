@@ -33,7 +33,7 @@ class MissionNode:
             {'mission_number': 0, 'x': -93.40589900134364, 'y': 17.37121018813923},
             {'mission_number': 1, 'x': -118.02613825938897, 'y': 10.89159974316135},
             {'mission_number': 2, 'x': -147.8114318390144, 'y': 28.72403534920886},
-            {'mission_number': 3, 'x': -148.67559809767408, 'y': 73.2866192725487},
+            {'mission_number': 3, 'x': -147.366516067239, 'y': 78.13069733697921},
             {'mission_number': 4, 'x': -72.11734004126629, 'y': 111.0132733262144},
             {'mission_number': 5, 'x': 11.36830715922406, 'y': 106.07728394400328},
             {'mission_number': 6, 'x': -65.31562037597178, 'y': 94.66656312160194},
@@ -69,6 +69,11 @@ class MissionNode:
                 # Optionally, remove or skip to the next mission
                 # For example, if missions are sequential and you only want to complete one at a time:
                 #self.missions.remove(mission)
+        
+        # 미션번호 강제할당
+        #self.mission_info.mission_num = 2
+        
+
 
 if __name__ == '__main__':
     try:

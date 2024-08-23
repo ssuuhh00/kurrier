@@ -1,1 +1,2 @@
-int32 mission_num
+float32 mission_num
+boolean is_waiting_time

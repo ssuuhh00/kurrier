@@ -39,7 +39,7 @@ class pure_pursuit :
 
         self.is_waiting_time = False
         self.count = 0
-        self.mission_num = 0
+        self.mission_info = mission()
 
         rate = rospy.Rate(15) # 15hz
         while not rospy.is_shutdown():
@@ -74,7 +74,7 @@ class pure_pursuit :
                             break
                 
                 theta=atan2(local_path_point[1],local_path_point[0])
-                default_vel = 14
+                default_vel = 18
                 if self.is_look_forward_point :
                     if self.is_waiting_time:               
                         self.ctrl_cmd_msg.velocity = 0
@@ -83,11 +83,11 @@ class pure_pursuit :
                         normalized_steer = abs(self.ctrl_cmd_msg.steering)/0.6981          
                         self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.7*normalized_steer)
                         
-                        if self.mission_num == 7 and (self.traffic_light_color==0):
+                        if self.mission_info.mission_num == 7 and (self.traffic_light_color==0):
                             self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
-                        elif self.mission_num == 7 and (self.traffic_light_color==1 or self.traffic_light_color==2):
+                        elif self.mission_info.mission_num == 7 and (self.traffic_light_color==1 or self.traffic_light_color==2):
                             self.ctrl_cmd_msg.velocity = 0.0
-                        elif self.mission_num == 7 and self.traffic_light_color==3:
+                        elif self.mission_info.mission_num == 7 and self.traffic_light_color==3:
                             self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
         
                         os.system('clear')
@@ -121,16 +121,16 @@ class pure_pursuit :
         self.obstacle = msg
 
     def mission_callback(self,msg):
-        if self.mission_num != msg.mission_num:
+        if self.mission_info.mission_num != msg.mission_num:
             if self.count < 45: #15hz 이니까 3초 대기
                 self.is_waiting_time = True
                 self.count += 1
             else:
                 self.count = 0
                 self.is_waiting_time = False
-                self.mission_num = msg.mission_num
+                self.mission_info.mission_num = msg.mission_num
         else:
-            self.mission_num = msg.mission_num  
+            self.mission_info = msg
 
     def odom_callback(self,msg):
         self.is_odom=True

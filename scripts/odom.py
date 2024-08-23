@@ -33,7 +33,6 @@ class TFNode:
         self.is_slam_odom = False
         self.proj_UTM = Proj(proj='utm',zone=52, ellps='WGS84', preserve_units=False)
         self.initial_yaw = None
-        self.current_yaw = 0
         self.start_position = Odometry()   # mission_num이 3이 될 때의 slam 초기 위치
         self.odom_msg=Odometry()
         self.liorf_position=Odometry()
@@ -60,9 +59,7 @@ class TFNode:
             elif self.is_slam_started and self.is_slam_odom:
                 self.odom_pub.publish(self.odom_msg)
                 self.is_slam_odom = False
-            # if self.current_yaw is not None:
-            #     self.current_yaw = self.get_yaw()
-            #     self.heading_pub.publish(self.current_yaw)
+
             rate.sleep()
 
     def get_yaw(self):    
