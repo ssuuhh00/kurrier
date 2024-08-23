@@ -6,5 +6,7 @@
     <node pkg="kurrier" type="lattice_planner.py" name="lattice_planner"/> 
     <node pkg="kurrier" type="yolo.py" name="yolo"/>
     <node pkg="kurrier" type="control.py" name="control"/>
+    <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch"/>
+    <node pkg="kurrier" type="velodyne_cluster.py" name="SCANCluster"/>
 </launch>
 
