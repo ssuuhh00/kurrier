@@ -80,10 +80,11 @@ class pure_pursuit :
                     self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)  
                     normalized_steer = abs(self.ctrl_cmd_msg.steering)/0.6981          
                     
-                    if self.is_waiting_time:               
-                        self.ctrl_cmd_msg.velocity = 0
+                    # if self.is_waiting_time:               
+                    #     self.ctrl_cmd_msg.velocity = 0
                         
-                    elif self.mission_info.mission_num == 7:
+                    # el
+                    if self.mission_info.mission_num == 7:
                         
                         if  self.traffic_light_color==0:
                             self.ctrl_cmd_msg.velocity = 0.7 * default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
@@ -95,11 +96,6 @@ class pure_pursuit :
                     else :
                             self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.7*normalized_steer)
                         
-                    # os.system('clear')
-                    # print("-------------------------------------")
-                    # print(" steering (deg) = ", self.ctrl_cmd_msg.steering * 180/pi)
-                    # print(" velocity (kph) = ", self.ctrl_cmd_msg.velocity)
-                    # print("-------------------------------------")
                 else : 
                     print("no found forward point")
                     self.ctrl_cmd_msg.steering=0.0
@@ -107,13 +103,6 @@ class pure_pursuit :
                 
                 self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
 
-            # else:
-            #     os.system('clear')
-            #     if not self.is_path:
-            #         print("[1] can't subscribe '/local_path' topic...")
-            #     if not self.is_odom:
-            #         print("[2] can't subscribe '/odom' topic...")
-            
             self.is_path = self.is_odom = False
             rate.sleep()
 
@@ -126,16 +115,15 @@ class pure_pursuit :
         self.obstacle = msg
 
     def mission_callback(self,msg):
-        if self.mission_info.mission_num != msg.mission_num:
-            if self.count < 90: #15hz 이니까 6초 대기
-                self.is_waiting_time = True
-                self.count += 1
-            else:
-                self.count = 0
-                self.is_waiting_time = False
-                self.mission_info.mission_num = msg.mission_num
-        else:
-            self.mission_info = msg
+        # if self.mission_info.mission_num != msg.mission_num:
+        #     if self.count < 90: #15hz 이니까 6초 대기
+        #         self.is_waiting_time = True
+        #         self.count += 1
+        #     else:
+        #         self.is_waiting_time = False
+        #         self.count = 0
+        # else:
+        self.mission_info = msg
 
     def odom_callback(self,msg):
         self.is_odom=True
@@ -143,6 +131,7 @@ class pure_pursuit :
         _,_,self.vehicle_yaw=euler_from_quaternion(odom_quaternion)
         self.current_postion.x=msg.pose.pose.position.x
         self.current_postion.y=msg.pose.pose.position.y
+
     def traffic_callback(self, msg):
         self.traffic_color = msg 
     
