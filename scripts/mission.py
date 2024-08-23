@@ -17,8 +17,8 @@ class MissionNode:
         self.mission_info = mission()
 
         self.proximity_threshold = 3.0
-        self.current_mission_index = 0
 
+        # 미션 0 시작점
         # 미션 1 차간간격1
         # 미션 2 정적장애물
         # 미션 3 gps음영1(공사장 장애물 회피)
@@ -30,7 +30,8 @@ class MissionNode:
 
         # Define missions with coordinates
         self.missions = [
-            {'mission_number': 1, 'x': -118.53937525855144, 'y': 4.976131527218968},
+            {'mission_number': 0, 'x': -93.40589900134364, 'y': 17.37121018813923},
+            {'mission_number': 1, 'x': -118.02613825938897, 'y': 10.89159974316135},
             {'mission_number': 2, 'x': -147.8114318390144, 'y': 28.72403534920886},
             {'mission_number': 3, 'x': -148.67559809767408, 'y': 73.2866192725487},
             {'mission_number': 4, 'x': -72.11734004126629, 'y': 111.0132733262144},
@@ -57,20 +58,17 @@ class MissionNode:
 
     def update_mission(self):
         """Update the current mission based on the current position."""
-        if self.current_mission_index >= len(self.missions):
-            self.mission_info.mission_num = len(self.missions)
-            return   # All missions completed
-        
-        current_mission = self.missions[self.current_mission_index]
-        dist = self.distance(self.current_position.x, self.current_position.y, current_mission['x'], current_mission['y'])
-        
-        if dist < self.proximity_threshold:
-            # Mission reached, update mission info
-            self.mission_info.mission_num = self.current_mission_index  # Publish 0-based index
-            self.current_mission_index += 1  # Move to the next mission
-        else:
-            # Continue with the current mission
-            self.mission_info.mission_num = self.current_mission_index  # Publish 0-based index
+        # Iterate through missions to find the one we're currently targeting
+        for mission in self.missions:
+            dist = self.distance(self.current_position.x, self.current_position.y, mission['x'], mission['y'])
+            
+            if dist < self.proximity_threshold:
+                # Mission reached, update mission info
+                self.mission_info.mission_num = mission['mission_number']
+                
+                # Optionally, remove or skip to the next mission
+                # For example, if missions are sequential and you only want to complete one at a time:
+                #self.missions.remove(mission)
 
 if __name__ == '__main__':
     try:

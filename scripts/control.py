@@ -39,7 +39,7 @@ class pure_pursuit :
 
         self.is_waiting_time = False
         self.count = 0
-
+        self.mission_num = 0
 
         rate = rospy.Rate(15) # 15hz
         while not rospy.is_shutdown():
