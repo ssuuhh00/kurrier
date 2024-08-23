@@ -6,6 +6,8 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point
 from kurrier.msg import mission  # 사용자 정의 메시지 임포트
 import math
+import subprocess
+import time
 
 class MissionNode:
     def __init__(self):
@@ -15,6 +17,7 @@ class MissionNode:
 
         self.current_position = Point()
         self.mission_info = mission()
+        self.is_slam_started = False
 
         self.proximity_threshold = 3.0
 
@@ -65,14 +68,24 @@ class MissionNode:
             if dist < self.proximity_threshold:
                 # Mission reached, update mission info
                 self.mission_info.mission_num = mission['mission_number']
-                
-                # Optionally, remove or skip to the next mission
-                # For example, if missions are sequential and you only want to complete one at a time:
-                #self.missions.remove(mission)
         
         # 미션번호 강제할당
         #self.mission_info.mission_num = 2
-        
+
+        if self.mission_info.mission_num == 3 and not self.is_slam_started:
+            # 1. slam 런치 파일 실행
+            launch_command = ["roslaunch", "kurrier", "kurrierSlam.launch"]
+            process = subprocess.Popen(launch_command)
+            time.sleep(6)  # 필요한 만큼 대기 (예: 다른 작업 수행)
+            self.is_slam_started = True
+
+        elif self.mission_info.mission_num != 3 and self.is_slam_started:
+            self.mission_pub.publish(self.mission_info)
+            # 2. slam 런치 파일 종료
+            #process.terminate()  # 또는 
+            process.kill()
+            process.wait()  # 프로세스가 종료될 때까지 대기
+            self.is_slam_started = False
 
 
 if __name__ == '__main__':

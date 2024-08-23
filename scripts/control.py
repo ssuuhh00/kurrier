@@ -127,7 +127,7 @@ class pure_pursuit :
 
     def mission_callback(self,msg):
         if self.mission_info.mission_num != msg.mission_num:
-            if self.count < 45: #15hz 이니까 3초 대기
+            if self.count < 90: #15hz 이니까 6초 대기
                 self.is_waiting_time = True
                 self.count += 1
             else:

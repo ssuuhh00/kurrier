@@ -13,6 +13,7 @@ from scipy.spatial.transform import Rotation as R
 from tf.transformations import euler_from_quaternion
 from std_msgs.msg import Float32
 from math import atan2, degrees, sqrt, sin, cos, pi
+import subprocess
 
 class TFNode:
     def __init__(self):
@@ -125,7 +126,7 @@ class TFNode:
 
             self.initial_yaw = self.get_yaw()
             self.is_slam_started = True
-        
+
         # gps음영 미션 끝
         elif msg.mission_num != 3 and self.is_slam_started:
             self.start_position = None
