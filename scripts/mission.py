@@ -17,7 +17,7 @@ class MissionNode:
         self.mission_info = mission()
 
         self.proximity_threshold = 3.0
-        self.current_mission_index = 2
+        self.current_mission_index = 0
 
         # 미션 1 차간간격1
         # 미션 2 정적장애물

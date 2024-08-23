@@ -28,7 +28,7 @@ class pure_pursuit :
         self.is_path=False
         self.is_odom=False
         self.is_yolo=False
-        self.mission_info = mission()
+
         self.traffic_light_color = ""
         self.obstacle = obstacle()
         self.forward_point=Point()
@@ -36,6 +36,10 @@ class pure_pursuit :
         self.is_look_forward_point=False
         self.vehicle_length=3
         self.lfd=5
+
+        self.is_waiting_time = False
+        self.count = 0
+
 
         rate = rospy.Rate(15) # 15hz
         while not rospy.is_shutdown():
@@ -72,23 +76,25 @@ class pure_pursuit :
                 theta=atan2(local_path_point[1],local_path_point[0])
                 default_vel = 14
                 if self.is_look_forward_point :
-                    
-                    self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)  
-                    normalized_steer = abs(self.ctrl_cmd_msg.steering)/0.6981          
-                    self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.7*normalized_steer)
-                    
-                    if self.mission_info.mission_num == 7 and (self.traffic_light_color==0):
-                        self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
-                    elif self.mission_info.mission_num == 7 and (self.traffic_light_color==1 or self.traffic_light_color==2):
-                        self.ctrl_cmd_msg.velocity = 0.0
-                    elif self.mission_info.mission_num == 7 and self.traffic_light_color==3:
-                        self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
-    
-                    os.system('clear')
-                    print("-------------------------------------")
-                    print(" steering (deg) = ", self.ctrl_cmd_msg.steering * 180/pi)
-                    print(" velocity (kph) = ", self.ctrl_cmd_msg.velocity)
-                    print("-------------------------------------")
+                    if self.is_waiting_time:               
+                        self.ctrl_cmd_msg.velocity = 0
+                    else:
+                        self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)  
+                        normalized_steer = abs(self.ctrl_cmd_msg.steering)/0.6981          
+                        self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.7*normalized_steer)
+                        
+                        if self.mission_num == 7 and (self.traffic_light_color==0):
+                            self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
+                        elif self.mission_num == 7 and (self.traffic_light_color==1 or self.traffic_light_color==2):
+                            self.ctrl_cmd_msg.velocity = 0.0
+                        elif self.mission_num == 7 and self.traffic_light_color==3:
+                            self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
+        
+                        os.system('clear')
+                        print("-------------------------------------")
+                        print(" steering (deg) = ", self.ctrl_cmd_msg.steering * 180/pi)
+                        print(" velocity (kph) = ", self.ctrl_cmd_msg.velocity)
+                        print("-------------------------------------")
                 else : 
                     print("no found forward point")
                     self.ctrl_cmd_msg.steering=0.0
@@ -115,7 +121,16 @@ class pure_pursuit :
         self.obstacle = msg
 
     def mission_callback(self,msg):
-        self.mission_info = msg 
+        if self.mission_num != msg.mission_num:
+            if self.count < 45: #15hz 이니까 3초 대기
+                self.is_waiting_time = True
+                self.count += 1
+            else:
+                self.count = 0
+                self.is_waiting_time = False
+                self.mission_num = msg.mission_num
+        else:
+            self.mission_num = msg.mission_num  
 
     def odom_callback(self,msg):
         self.is_odom=True
