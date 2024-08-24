@@ -10,7 +10,14 @@ from std_msgs.msg import Int16, Bool
 import numpy as np
 from tf.transformations import euler_from_quaternion
 from kurrier.msg import mission, obstacle   # 사용자 정의 메시지 임포트 
-from morai_msgs.srv import MoraiEventCmdSrv, MoraiEventCmdSrvRequest
+from morai_msgs.srv import MoraiEventCmdSrv
+from enum import Enum
+
+class Gear(Enum):
+    P = 1
+    R = 2
+    N = 3
+    D = 4
 
 class pure_pursuit :
     def __init__(self):
@@ -20,7 +27,7 @@ class pure_pursuit :
         rospy.Subscriber("/obstacle_info", obstacle, self.yolo_callback)
         rospy.Subscriber("/mission", mission, self.mission_callback)
         rospy.Subscriber("traffic_light_color", Int16, self.traffic_callback)
-        rospy.Subscriber("/check_finish", Bool, self.parking_callback)
+        rospy.Subscriber("/check_finish", Bool, self.finish_callback)
 
         self.ctrl_cmd_pub = rospy.Publisher('/ctrl_cmd',CtrlCmd, queue_size=10)
         self.ctrl_cmd_msg=CtrlCmd()
@@ -42,14 +49,12 @@ class pure_pursuit :
         self.count = 0
         self.mission_info = mission()
 
-        self.doing_parking = False
-        self.check_finish = False
-
-        # MoraiEventCmdSrv 서비스 클라이언트 (서비스가 사용 가능할 때까지 대기)
-        rospy.loginfo("Waiting for /Service_MoraiEventCmd service...")
-        rospy.wait_for_service('/Service_MoraiEventCmd')
-        self.event_cmd_client = rospy.ServiceProxy('/Service_MoraiEventCmd', MoraiEventCmdSrv)
-        rospy.loginfo("/Service_MoraiEventCmd service is now available.")
+        self.is_finish = False
+        self.stopped = False
+        
+        # 기어 변경 서비스 설정
+        rospy.wait_for_service('/Service_MoraiEventCmd', timeout=5)
+        self.event_cmd_srv = rospy.ServiceProxy('Service_MoraiEventCmd', MoraiEventCmdSrv)
 
         rate = rospy.Rate(15) # 15hz
         while not rospy.is_shutdown():
@@ -86,52 +91,28 @@ class pure_pursuit :
                 theta=atan2(local_path_point[1],local_path_point[0])
                 default_vel = 15
 
-                if (self.mission_info.mission_num == 8) and (self.check_finish):
-                    if not self.doing_parking:
-                        self.ctrl_cmd_msg.velocity = 0
-                        self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
-
-                        # 3초 후에 이벤트 명령을 보내기 위해 대기
-                        rospy.sleep(3)
-
-                        # MoraiEventCmdSrv 서비스 요청 생성
-                        event_cmd_request = MoraiEventCmdSrvRequest()
-                        
-                        # EventInfo 메시지 설정
-                        event_info = EventInfo()
-                        event_info.option = 2  # 기어 변경 옵션
-                        event_info.ctrl_mode = 3  # 자동 주행 모드 유지
-                        event_info.gear = 1  # 기어를 P로 설정
-
-                        # 서비스 요청에 EventInfo 메시지 설정
-                        event_cmd_request.request = event_info
-
-                        # 서비스 호출
-                        try:
-                            rospy.loginfo("Sending MoraiEventCmdSrv request with option=2, ctrl_mode=3, gear=1")
-                            response = self.event_cmd_client(event_cmd_request)
-                            rospy.loginfo(f"Received response: {response}")
-                        except rospy.ServiceException as e:
-                            rospy.logerr(f"Service call failed: {e}")
-
-                        self.doing_parking = True
-
-                elif self.is_look_forward_point :
-
+                if self.is_look_forward_point :
+                    # 조향각
                     self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)  
                     normalized_steer = abs(self.ctrl_cmd_msg.steering)/0.6981          
-                    
+                    # 기본 속도
+                    self.ctrl_cmd_msg.velocity = default_vel
+
                     if self.mission_info.mission_num == 7:
-                        
                         if  self.traffic_light_color==0:
                             self.ctrl_cmd_msg.velocity = 0.7 * default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
                         elif self.traffic_light_color==1 or self.traffic_light_color==2:
                             self.ctrl_cmd_msg.velocity = 0
-                           
                         elif self.traffic_light_color==3:
                             self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
-                    else :
-                            self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.7*normalized_steer)
+                    elif self.mission_info.mission_num == 8:
+                        if self.is_finish:
+                            self.stop_vehicle()
+                            self.send_gear_cmd(Gear.P.value)
+                        else:
+                            self.ctrl_cmd_msg.velocity = default_vel
+                    else:
+                        self.ctrl_cmd_msg.velocity = default_vel
                         
                 else : 
                     print("no found forward point")
@@ -164,9 +145,45 @@ class pure_pursuit :
     def traffic_callback(self, msg):
         self.traffic_color = msg 
 
-    def parking_callback(self, msg):
-        self.check_finish = msg 
-    
+    def finish_callback(self, msg):
+        if not self.stopped:
+            self.is_finish = msg.data
+            self.stopped = True
+
+    def send_gear_cmd(self, gear_mode):
+        #기어 변경 요청을 서비스 콜을 통해 전송하고 성공 여부를 반환
+        try:
+            gear_cmd = EventInfo()
+            gear_cmd.option = 3
+            gear_cmd.ctrl_mode = 3
+            gear_cmd.gear = gear_mode
+
+            response = self.event_cmd_srv(gear_cmd)
+
+            if response:
+                rospy.loginfo(f"Gear successfully changed to {gear_mode}")
+                rospy.sleep(1)  # 기어 변경 후 안정화 시간 추가
+                return True
+            else:
+                rospy.logerr(f"Failed to change gear to {gear_mode}")
+                return False
+        except rospy.ServiceException as e:
+            rospy.logerr(f"Service call failed: {e}")
+            return False
+        
+    def stop_vehicle(self):
+        """
+        차량을 완전히 정지시키기 위해 속도를 0으로 설정하고 조향 각도를 0으로 설정, 브레이크를 적용
+        """
+        self.ctrl_cmd_msg.velocity = 0.0
+        self.ctrl_cmd_msg.steering = 0.0  # 조향 각도를 0으로 설정
+        self.ctrl_cmd_msg.brake = 1.0  # 최대 제동력
+        self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
+        # 2초 후에 이벤트 명령을 보내기 위해 대기
+        rospy.sleep(2)
+        rospy.loginfo("Vehicle stopped") 
+
+        
 if __name__ == '__main__':
     try:
         test_track=pure_pursuit()
