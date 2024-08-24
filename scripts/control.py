@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import rospy, os
-import rospkg
-from math import cos,sin,pi,sqrt,pow,atan2
-from geometry_msgs.msg import Point,PoseWithCovarianceStamped
+import rospy
+from math import cos,sin,sqrt,pow,atan2
+from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry,Path
 from morai_msgs.msg import CtrlCmd
-from std_msgs.msg import String, Int16
+from std_msgs.msg import Int16
 import numpy as np
-import tf
-from tf.transformations import euler_from_quaternion,quaternion_from_euler
-from kurrier.msg import mission, obstacle  # 사용자 정의 메시지 임포트 
+from tf.transformations import euler_from_quaternion
+from kurrier.msg import mission, obstacle, EventInfo  # 사용자 정의 메시지 임포트 
+from morai_msgs.srv import MoraiEventCmdSrv, MoraiEventCmdSrvRequest
 
 class pure_pursuit :
     def __init__(self):
@@ -21,6 +20,8 @@ class pure_pursuit :
         rospy.Subscriber("/obstacle_info", obstacle, self.yolo_callback)
         rospy.Subscriber("/mission", mission, self.mission_callback)
         rospy.Subscriber("traffic_light_color", Int16, self.traffic_callback)
+        rospy.Subscriber("", , self.parking_callback)
+
         self.ctrl_cmd_pub = rospy.Publisher('/ctrl_cmd',CtrlCmd, queue_size=10)
         self.ctrl_cmd_msg=CtrlCmd()
         self.ctrl_cmd_msg.longlCmdType=2
@@ -40,6 +41,15 @@ class pure_pursuit :
         self.is_waiting_time = False
         self.count = 0
         self.mission_info = mission()
+
+        self.doing_parking = False
+        self.do_parking = False
+
+        # MoraiEventCmdSrv 서비스 클라이언트 (서비스가 사용 가능할 때까지 대기)
+        rospy.loginfo("Waiting for /Service_MoraiEventCmd service...")
+        rospy.wait_for_service('/Service_MoraiEventCmd')
+        self.event_cmd_client = rospy.ServiceProxy('/Service_MoraiEventCmd', MoraiEventCmdSrv)
+        rospy.loginfo("/Service_MoraiEventCmd service is now available.")
 
         rate = rospy.Rate(15) # 15hz
         while not rospy.is_shutdown():
@@ -75,15 +85,42 @@ class pure_pursuit :
                 
                 theta=atan2(local_path_point[1],local_path_point[0])
                 default_vel = 15
-                if self.is_look_forward_point :
+
+                if self.mission_info.mission_num == 8 and self.do_parking:
+                    if not self.doing_parking:
+                        self.ctrl_cmd_msg.velocity = 0
+                        self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
+
+                        # 3초 후에 이벤트 명령을 보내기 위해 대기
+                        rospy.sleep(3)
+
+                        # MoraiEventCmdSrv 서비스 요청 생성
+                        event_cmd_request = MoraiEventCmdSrvRequest()
+                        
+                        # EventInfo 메시지 설정
+                        event_info = EventInfo()
+                        event_info.option = 2  # 기어 변경 옵션
+                        event_info.ctrl_mode = 3  # 자동 주행 모드 유지
+                        event_info.gear = 1  # 기어를 P로 설정
+
+                        # 서비스 요청에 EventInfo 메시지 설정
+                        event_cmd_request.request = event_info
+
+                        # 서비스 호출
+                        try:
+                            rospy.loginfo("Sending MoraiEventCmdSrv request with option=2, ctrl_mode=3, gear=1")
+                            response = self.event_cmd_client(event_cmd_request)
+                            rospy.loginfo(f"Received response: {response}")
+                        except rospy.ServiceException as e:
+                            rospy.logerr(f"Service call failed: {e}")
+
+                        self.doing_parking = True
+
+                elif self.is_look_forward_point :
 
                     self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)  
                     normalized_steer = abs(self.ctrl_cmd_msg.steering)/0.6981          
                     
-                    # if self.is_waiting_time:               
-                    #     self.ctrl_cmd_msg.velocity = 0
-                        
-                    # el
                     if self.mission_info.mission_num == 7:
                         
                         if  self.traffic_light_color==0:
@@ -115,14 +152,6 @@ class pure_pursuit :
         self.obstacle = msg
 
     def mission_callback(self,msg):
-        # if self.mission_info.mission_num != msg.mission_num:
-        #     if self.count < 90: #15hz 이니까 6초 대기
-        #         self.is_waiting_time = True
-        #         self.count += 1
-        #     else:
-        #         self.is_waiting_time = False
-        #         self.count = 0
-        # else:
         self.mission_info = msg
 
     def odom_callback(self,msg):
@@ -134,6 +163,9 @@ class pure_pursuit :
 
     def traffic_callback(self, msg):
         self.traffic_color = msg 
+
+    def parking_callback(self, msg):
+        self.do_parking = msg 
     
 if __name__ == '__main__':
     try:

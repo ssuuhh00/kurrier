@@ -12,7 +12,8 @@ class slamOnOffNode:
         rospy.Subscriber("/mission", mission, self.mission_callback)
 
         self.mission_info = mission()
-        self.is_slam_started = False
+        self.is_first_slam_started = False
+        self.is_second_slam_started = False
 
         rate = rospy.Rate(15)  # 15hz
         while not rospy.is_shutdown():
@@ -23,19 +24,34 @@ class slamOnOffNode:
         self.mission_info = msg
 
     def check_mission(self):
-        if self.mission_info.mission_num == 3 and not self.is_slam_started:
+        if self.mission_info.mission_num == 3 and not self.is_first_slam_started:
             # 1. slam 런치 파일 실행
             launch_command = ["roslaunch", "kurrier", "kurrierSlam.launch"]
             process = subprocess.Popen(launch_command)
-            time.sleep(6)  # 필요한 만큼 대기 (예: 다른 작업 수행)
-            self.is_slam_started = True
+            time.sleep(3)  # 필요한 만큼 대기 (예: 다른 작업 수행)
+            self.is_first_slam_started = True
 
-        elif self.mission_info.mission_num != 3 and self.is_slam_started:
+        elif self.mission_info.mission_num != 3 and self.is_first_slam_started:
             # 2. slam 런치 파일 종료
-            process.terminate()  # 또는 
-            #process.kill()
+            self.is_first_slam_started = False
+            #process.terminate()  # 또는 
+            process.kill()
             process.wait()  # 프로세스가 종료될 때까지 대기
-            self.is_slam_started = False
+
+        elif self.mission_info.mission_num == 6 and not self.is_second_slam_started:
+            # 1. slam 런치 파일 실행
+            launch_command = ["roslaunch", "kurrier", "kurrierSlam.launch"]
+            process = subprocess.Popen(launch_command)
+            time.sleep(3)  # 필요한 만큼 대기 (예: 다른 작업 수행)
+            self.is_second_slam_started = True
+
+        elif self.mission_info.mission_num != 6 and self.is_second_slam_started:
+            # 2. slam 런치 파일 종료
+            self.is_second_slam_started = False
+            #process.terminate()  # 또는 
+            process.kill()
+            process.wait()  # 프로세스가 종료될 때까지 대기
+
 
 if __name__ == '__main__':
     try:

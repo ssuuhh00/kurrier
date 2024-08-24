@@ -19,7 +19,7 @@ class YoloNode:
         self.image_sub = rospy.Subscriber("/image_jpeg/compressed", CompressedImage, self.image_callback)
         self.mode_sub = rospy.Subscriber("/mission", mission, self.mission_callback)
         self.obstacle_pub = rospy.Publisher("/obstacle_info", obstacle, queue_size=5)  # 새로운 퍼블리셔
-        self.traffic_color_pub = rospy.Publisher("/traffic_light_color",Int16,queue_size=5 )
+        self.traffic_color_pub = rospy.Publisher("/traffic_light_color", Int16, queue_size=10 )
         
         
         self.bridge = CvBridge()
@@ -27,13 +27,13 @@ class YoloNode:
 
         # GPU 사용 설정
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.path = 'yolov8n.pt'
+        self.path = '/home/jmj/yolov8n.pt'
         self.model = YOLO(self.path)
         self.model = self.model.to(self.device)
         # YOLO 모델을 GPU에 로드
         #self.general_model = YOLO('/home/yolov8n.pt').to(self.device)
         
-        self.confidence_threshold = 0.2  # 신뢰도 임계값
+        self.confidence_threshold = 0.4  # 신뢰도 임계값
         self.mission_info = mission()
         self.obstacle = obstacle()
         rospy.loginfo("YOLO node has been started.")
@@ -44,7 +44,10 @@ class YoloNode:
         self.previous_boxes = {}
         self.previous_collision_probabilities = []
 
-        self.recent_traffic_colors = deque(maxlen=8)
+        #신호등 처리 
+        self.traffic_color=0
+        self.recent_traffic_colors = deque(maxlen=5)
+        self.final_color = 0 
 
     #cuda 사용을 위한 이미지 전처리 
     def preprocess_image(self, frame):
@@ -71,41 +74,41 @@ class YoloNode:
         
     def set_roi_by_mission(self, mission_num, frame_width, frame_height):
  
-        if mission_num == 1 or mission_num == 5: 
-            # 차간간격, 끼어들기 
+        if mission_num == 1 or mission_num == 51: 
+            # 차간간격 
             roi_x1 = int(frame_width * 0.36)
             roi_x2 = int(frame_width * 0.64)
             roi_y1 = int(frame_height * 0.4)
             roi_y2 = int(frame_height * 0.83)
-
-        elif mission_num == 2 or mission_num == 6:
-            # 정적장애물 및 동적(보행자 감지)
-            roi_x1 = int(frame_width*0.1)
-            roi_x2 = int(frame_width * 0.9)
-            roi_y1 = int(frame_height * 0.35 )
-            roi_y2 = int(frame_height * 0.9)
-
-        elif mission_num == 4:
-            # 주차
-            roi_x1 = int(frame_width * 0.1)
-            roi_x2 = int(frame_width * 0.9)
-            roi_y1 = int(frame_height * 0.3) 
-            roi_y2 = int(frame_height * 0.9)
         
+        elif mission_num == 2 or mission_num == 4 or mission_num == 7:
+            # 정적장애물 및 동적(보행자 감지)
+            roi_x1 = int(frame_width*0.05)
+            roi_x2 = int(frame_width * 0.95)
+            roi_y1 = int(frame_height * 0.35)
+            roi_y2 = int(frame_height * 0.85)
+            
+            # 끼어들기
+        elif mission_num == 5:
+            roi_x1 = int(frame_width * 0.36)
+            roi_x2 = int(frame_width * 0.64)
+            roi_y1 = int(frame_height * 0.43)
+            roi_y2 = int(frame_height * 0.75)
+
         elif mission_num == 7:
             #신호등 감지 미션, 상단 중앙 영역을 ROI로 설정
             
-            roi_x1 = int(0.43 * frame_width)
-            roi_x2 = int(0.57 * frame_width)
-            roi_y1 = int(0.27 * frame_height)
+            roi_x1 = int(0.44 * frame_width)
+            roi_x2 = int(0.56 * frame_width)
+            roi_y1 = int(0.29 * frame_height)
             roi_y2 = int(0.43 * frame_height)
-
+        
         else:
             # 기본 ROI 설정: 이미지 전체 영역
-            roi_x1 = 0
-            roi_x2 = frame_width
-            roi_y1 = 0
-            roi_y2 = frame_height
+            roi_x1 = int(frame_width * 0.05)
+            roi_x2 = int(frame_width * 0.95)
+            roi_y1 = int(frame_height * 0.35)
+            roi_y2 = int(frame_height * 0.85)
         
         if self.latest_frame is not None:
             self.visualize_and_publish_roi(self.latest_frame, roi_x1, roi_y1, roi_x2, roi_y2)
@@ -161,7 +164,6 @@ class YoloNode:
      # 신호등 색상 결정
     def decide_traffic_light_color(self):
         if self.recent_traffic_colors:
-            # 최근 N개의 값 중에서 가장 빈도가 높은 값을 반환
             return mode(self.recent_traffic_colors)
         else:
             return 0
@@ -171,9 +173,9 @@ class YoloNode:
         hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
 
         # 색 범위 설정 (예: 빨간색, 노란색, 초록색)
-        red_lower = np.array([130, 200, 90])
-        red_upper = np.array([179, 255, 255])
-        yellow_lower = np.array([10, 170, 100])
+        red_lower = np.array([130, 120, 60])
+        red_upper = np.array([179, 255, 255])   
+        yellow_lower = np.array([10, 120, 175])
         yellow_upper = np.array([45, 255, 255])
         green_lower = np.array([40, 50, 145])
         green_upper = np.array([75, 255, 255])
@@ -190,22 +192,22 @@ class YoloNode:
 
         # 가장 많은 픽셀 수를 가진 색깔을 감지
         if red_pixels > yellow_pixels and red_pixels > green_pixels:
-            traffic_color = 1 #"red"
+            self.traffic_color = 1 #"red"
         elif yellow_pixels > red_pixels and yellow_pixels > green_pixels:
-            traffic_color = 2 #"yellow"
+            self.traffic_color = 2 #"yellow"
         elif green_pixels > red_pixels and green_pixels > yellow_pixels:
-            traffic_color = 3 #"green"
+            self.traffic_color = 3 #"green"
         else:
-            traffic_color = 0 #"unknown"
+            self.traffic_color = 0 #"unknown"
         
         # 최근 색상 결과 업데이트
-        self.recent_traffic_colors.append(traffic_color)
-        rospy.loginfo(f"Current detected color: {traffic_color}")
+        self.recent_traffic_colors.append(self.traffic_color)
+        rospy.loginfo(f"Current detected color: {self.traffic_color}")
 
         # 최종 색상 결정 및 퍼블리시
-        final_color = self.decide_traffic_light_color()
-        self.traffic_color_pub.publish(final_color)
-        rospy.loginfo(f"Final traffic light color: {final_color}")
+        self.final_color = self.decide_traffic_light_color()
+        self.traffic_color_pub.publish(self.final_color)
+        rospy.loginfo(f"Final traffic light color: {self.final_color}")
 
     #충돌 확률 계산 알고리즘 
     def calculate_collision_probability(self, frame):
@@ -230,7 +232,13 @@ class YoloNode:
     def compute_highest_collision_probability(self, predicted_boxes, frame):
         height, width, _ = frame.shape
         center_x, center_y = width//2, int(height *0.66)
-        roi_x1, roi_y1, roi_x2, roi_y2 = self.set_roi_by_mission(self.mission_info.mission_num, width, height)
+        if self.mission_info.mission_num == 8 :
+            roi_x1 = int(width* 0.1)
+            roi_x2 = int(width * 0.9)
+            roi_y1 = int(height * 0.35 )
+            roi_y2 = int(height * 0.9)
+        else : 
+            roi_x1, roi_y1, roi_x2, roi_y2 = self.set_roi_by_mission(self.mission_info.mission_num, width, height)
        
         #특정 roi로 자르기 
         roi_area = self.calculate_box_area(roi_x1, roi_y1, roi_x2, roi_y2)
@@ -269,14 +277,15 @@ class YoloNode:
                 
                 if (distance_ratio <= 0.05 or box_iou >= 0.95):
                     collision_probability = (4.5 * (1 - distance_ratio) + 3.5 * box_iou + 1.5 * area_change_rate) * occupancy_ratio / 9.5 * 100.0 
-                     
-                elif (self.mission_info.mission_num == 5):
+                elif (self.mission_info.mission_num == 51):
                     collision_probability = (3.5 * (1 - distance_ratio) + 4.5 * box_iou) * occupancy_ratio / 8 * 100.0    
                 else : 
                     collision_probability = (4.5 * (1 - distance_ratio) + 3.5 * box_iou) * occupancy_ratio / 8 * 100.0 
                 
-                if self.obstacle.classnum==0:
-                        collision_probability = (4.5 * (1 - distance_ratio) + 1.5 * box_iou ) * 7 * occupancy_ratio / 6 * 100.0
+                if (self.mission_info.mission_num == 5):
+                        collision_probability = (1.5 * (1 - distance_ratio) + 3.0 * box_iou)/ 4.5 * 100.0    
+                if self.obstacle.classnum==0 or self.obstacle.classnum==1 or self.obstacle.classnum==3 :
+                        collision_probability = (4.5 * (1 - distance_ratio) + 2.0 * box_iou ) * 13 * occupancy_ratio / 6.5 * 100.0
                 collision_probability = max(0.0, min(collision_probability, 100))  # 0에서 100 사이로 제한
                 
                 if collision_probability > highest_collision_probability:
@@ -286,14 +295,15 @@ class YoloNode:
 
         return best_classnum, highest_collision_probability 
     
-    # 신뢰도 낮은것 버리기 
+    # 신뢰도 낮은 것과 class_number가 0, 1, 2 3 가 아닌 것을 버리기
     def filter_results_by_confidence(self, results):
+        allowed_classes = {0, 1, 2, 3, 888}  # 허용된 클래스 번호 집합
         filtered_results = []
         for result in results:
-            filtered_boxes = [box for box in result.boxes if box.conf > self.confidence_threshold]
+            filtered_boxes = [box for box in result.boxes if box.conf > self.confidence_threshold and int(box.cls.item()) in allowed_classes]
             filtered_results.append(filtered_boxes)
         return filtered_results
-    
+
     #이미지 받아오기 콜백 
     def image_callback(self, data):
         try:
@@ -311,16 +321,17 @@ class YoloNode:
     
     #mission number 에 따라 다르게 동작하는 로직  
     def timer_callback(self, event): 
-        if self.mission_info.mission_num in [3,6]:#gpsshaded에서 완전 끄기 
+        if self.mission_info.mission_num in [3,4,6]:#주차 및 gpsshaded에서 완전 끄기 
             return
         if self.latest_frame is not None:
-            if self.mission_info.mission_num in [0,1,5]:  # 끼어들기, 차간간격
+            if self.mission_info.mission_num in [0,1,5,51]:  # 끼어들기, 차간간격
                 self.calculate_collision_probability(self.latest_frame)
             
-            elif self.mission_info.mission_num in [2,4]:  # 동적 장애물 감지
+            elif self.mission_info.mission_num in [2,4,7]:  # 동적 장애물 감지
                 self.calculate_collision_probability(self.latest_frame)
             
-            elif self.mission_info.mission_num == 7:  # 신호등 탐지 미션
+            elif self.mission_info.mission_num == 8:  # 신호등 탐지 미션
+                self.calculate_collision_probability(self.latest_frame.copy())
                 # ROI 설정
                 roi_x1, roi_y1, roi_x2, roi_y2 = self.set_roi_by_mission(self.mission_info.mission_num, 
                                                                          self.latest_frame.shape[1], 
@@ -329,7 +340,8 @@ class YoloNode:
                 roi= frame[roi_y1:roi_y2,roi_x1:roi_x2]
                 # 신호등 검출 및 색상 분석
                 self.detect_traffic_light_color(roi)
-                    
+            else: 
+                self.calculate_collision_probability(self.latest_frame)
 
             self.latest_frame = None
     

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import rospy
-from math import cos, sin, sqrt, pow, atan2, radians
+from math import cos, sin, sqrt, pow, atan2
 from sensor_msgs.msg import PointCloud2
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path, Odometry

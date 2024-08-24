@@ -1,5 +1,16 @@
 # 버전 내역
-시작점 코너 크게돌기(경로다시찍기)
+할 일
+    공사장 래티스 합치기
+    주차
+    gps 2구역
+    slam 끄는거
+    최적화
+    파라미터들 mission노드 안으로 이동
+    
 0823
 미션 노드 해당 미션 시작점 가까이가면 그번호로 바뀜 중복가능
-*This code is just an example. If you want higher performance, please proceed with direct tuning and algorithm advancement.*
+
+0824
+        # 미션 4 동적장애물
+        # 미션 41 주차
+        두개가 다르면 안됨

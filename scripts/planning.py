@@ -3,8 +3,8 @@
 
 import rospy
 import rospkg
-from math import cos,sin,pi,sqrt,pow
-from geometry_msgs.msg import Point32,PoseStamped
+from math import sqrt,pow
+from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry,Path
 
 class planning :

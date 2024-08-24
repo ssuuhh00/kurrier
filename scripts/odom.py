@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
  
 import rospy
-import os
 from sensor_msgs.msg import Imu
 from morai_msgs.msg import GPSMessage
 from nav_msgs.msg import Odometry
@@ -25,28 +24,29 @@ class TFNode:
         self.x, self.y = None, None
         self.is_imu=False
         self.is_gps=False
-        self.is_slam_started = False
+
+        self.is_1st_slam_started = False
+        self.is_2nd_slam_started = False
         self.is_slam_odom = False
-        self.proj_UTM = Proj(proj='utm',zone=52, ellps='WGS84', preserve_units=False)
         self.initial_yaw = None
         self.start_position = Odometry()   #slam 초기 위치
-        self.odom_msg=Odometry()
 
+        self.proj_UTM = Proj(proj='utm',zone=52, ellps='WGS84', preserve_units=False)
+
+        self.odom_msg=Odometry()
         self.odom_msg.header.frame_id='/odom'
         self.odom_msg.child_frame_id='/base_link'
 
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
-            os.system('clear')
-            if not self.is_slam_started:
+            if not (self.is_1st_slam_started or self.is_2nd_slam_started):
                 if  self.is_imu==True and self.is_gps == True:
                     self.convertLL2UTM()
                     self.odom_pub.publish(self.odom_msg)
                 self.is_gps = self.is_imu = False
-            elif self.is_slam_started and self.is_slam_odom:
+            elif (self.is_1st_slam_started or self.is_2nd_slam_started) and self.is_slam_odom:
                 self.odom_pub.publish(self.odom_msg)
                 self.is_slam_odom = False
-
             rate.sleep()
 
     def get_yaw(self):    
@@ -77,7 +77,7 @@ class TFNode:
         self.odom_msg.pose.pose.position.z = self.z
 
     def navsat_callback(self, gps_msg):
-        if not self.is_slam_started:
+        if not self.is_1st_slam_started:
             self.lat = gps_msg.latitude
             self.lon = gps_msg.longitude
             self.e_o = gps_msg.eastOffset
@@ -100,27 +100,51 @@ class TFNode:
         self.is_imu=True
 
     def mission_callback(self, msg):
-        # gps음영 미션 시작
-        if msg.mission_num == 3 and not self.is_slam_started:
+        # GPS 음영 미션 시작
+        if msg.mission_num == 3 and not self.is_1st_slam_started:
             self.start_position.pose.pose.position.x = self.odom_msg.pose.pose.position.x
             self.start_position.pose.pose.position.y = self.odom_msg.pose.pose.position.y
             self.start_position.pose.pose.position.z = self.odom_msg.pose.pose.position.z
 
-            # self.start_position.pose.pose.position.x = -147.70611567626474
-            # self.start_position.pose.pose.position.y = 70.78425415977836
-            # self.start_position.pose.pose.position.z = 0.3509678840637207
+            self.initial_yaw = self.get_yaw()
+
+            # 시작 위치와 yaw 값 로깅
+            rospy.loginfo("SLAM started at position: x = {:.6f}, y = {:.6f}, yaw = {:.6f}".format(
+                self.start_position.pose.pose.position.x,
+                self.start_position.pose.pose.position.y,
+                self.initial_yaw
+            ))
+            self.is_1st_slam_started = True
+
+        elif msg.mission_num == 6 and not self.is_2nd_slam_started:
+            self.start_position.pose.pose.position.x = self.odom_msg.pose.pose.position.x
+            self.start_position.pose.pose.position.y = self.odom_msg.pose.pose.position.y
+            self.start_position.pose.pose.position.z = self.odom_msg.pose.pose.position.z
 
             self.initial_yaw = self.get_yaw()
-            self.is_slam_started = True
+
+            # 시작 위치와 yaw 값 로깅
+            rospy.loginfo("SLAM started at position: x = {:.6f}, y = {:.6f}, yaw = {:.6f}".format(
+                self.start_position.pose.pose.position.x,
+                self.start_position.pose.pose.position.y,
+                self.initial_yaw
+            ))
+            self.is_2nd_slam_started = True
 
         # gps음영 미션 끝
-        elif msg.mission_num != 3 and self.is_slam_started:
+        elif msg.mission_num != 3 and self.is_1st_slam_started:
             self.start_position = None
-            self.is_slam_started = False
+            self.is_1st_slam_started = False
+            self.initial_yaw = None
+        
+        # gps음영 미션 끝
+        elif msg.mission_num != 6 and self.is_2nd_slam_started:
+            self.start_position = None
+            self.is_2nd_slam_started = False
             self.initial_yaw = None
 
     def liorf_callback(self, msg):
-        if self.is_slam_started:
+        if self.is_1st_slam_started or self.is_2nd_slam_started:
             if self.start_position is not None:
                 # SLAM으로부터 받은 차량의 로컬 좌표 위치를 저장
                 x = msg.pose.pose.position.x

@@ -6,8 +6,6 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point
 from kurrier.msg import mission  # 사용자 정의 메시지 임포트
 import math
-import subprocess
-import time
 
 class MissionNode:
     def __init__(self):
@@ -26,11 +24,12 @@ class MissionNode:
         # 미션 2 정적장애물
         # 미션 3 gps음영1(공사장 장애물 회피)
         # 미션 4 동적장애물(주차)
-        # 미션 5 차간간격2
+        # 미션 5 끼어들기2
+        # 미션 51 차간간격2        
         # 미션 6 gps음영2(장애물)
-        # 미션 6.1 gps 음영구간 끝나는 곳
+        # 미션 61 gps 음영구간 끝나는 곳
         # 미션 7 신호등
-        # 미션 8 END/정지
+        # 미션 8 END지점 찾기
 
         # Define missions with coordinates
         self.missions = [
@@ -39,11 +38,12 @@ class MissionNode:
             {'mission_number': 2, 'x': -147.8114318390144, 'y': 28.72403534920886},
             {'mission_number': 3, 'x': -147.366516067239, 'y': 78.13069733697921},
             {'mission_number': 4, 'x': -72.11734004126629, 'y': 111.0132733262144},
-            {'mission_number': 5, 'x': 11.36830715922406, 'y': 106.07728394400328},
+            {'mission_number': 5, 'x': 12.72007946803933, 'y': 110.19885071832687},
+            {'mission_number': 51, 'x': -0.06720089790178463, 'y': 94.99975404236466},
             {'mission_number': 6, 'x': -73.75782771245576, 'y': 75.91509827692062},
-            {'mission_number': 66, 'x': -74.0373763567768, 'y': -9.178766163997352},
-            {'mission_number': 7, 'x': -69.88784022611799, 'y': -80.74107542820275},
-            {'mission_number': 8, 'x': 0.8367664078832604, 'y': -104.31452361121774}
+            {'mission_number': 61, 'x': -74.0373763567768, 'y': -9.178766163997352},
+            {'mission_number': 7, 'x': -73.94598383974517, 'y': 16.314182367175817},
+            {'mission_number': 8, 'x': -46.3847617636784, 'y': -104.03170958580449}
         ]
 
         rate = rospy.Rate(15)  # 15hz
@@ -70,25 +70,6 @@ class MissionNode:
             if dist < self.proximity_threshold:
                 # Mission reached, update mission info
                 self.mission_info.mission_num = mission['mission_number']
-        
-        # 미션번호 강제할당
-        #self.mission_info.mission_num = 2
-
-        # if self.mission_info.mission_num == 3 and not self.is_slam_started:
-        #     # 1. slam 런치 파일 실행
-        #     launch_command = ["roslaunch", "kurrier", "kurrierSlam.launch"]
-        #     process = subprocess.Popen(launch_command)
-        #     time.sleep(6)  # 필요한 만큼 대기 (예: 다른 작업 수행)
-        #     self.is_slam_started = True
-
-        # elif self.mission_info.mission_num != 3 and self.is_slam_started:
-        #     self.mission_pub.publish(self.mission_info)
-        #     # 2. slam 런치 파일 종료
-        #     #process.terminate()  # 또는 
-        #     process.kill()
-        #     process.wait()  # 프로세스가 종료될 때까지 대기
-        #     self.is_slam_started = False
-
 
 if __name__ == '__main__':
     try:
