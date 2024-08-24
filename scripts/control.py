@@ -6,7 +6,7 @@ from math import cos,sin,sqrt,pow,atan2
 from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry,Path
 from morai_msgs.msg import CtrlCmd
-from std_msgs.msg import Int16
+from std_msgs.msg import Int16, Bool
 import numpy as np
 from tf.transformations import euler_from_quaternion
 from kurrier.msg import mission, obstacle, EventInfo  # 사용자 정의 메시지 임포트 
@@ -20,7 +20,7 @@ class pure_pursuit :
         rospy.Subscriber("/obstacle_info", obstacle, self.yolo_callback)
         rospy.Subscriber("/mission", mission, self.mission_callback)
         rospy.Subscriber("traffic_light_color", Int16, self.traffic_callback)
-        rospy.Subscriber("", , self.parking_callback)
+        rospy.Subscriber("/check_finish", Bool, self.parking_callback)
 
         self.ctrl_cmd_pub = rospy.Publisher('/ctrl_cmd',CtrlCmd, queue_size=10)
         self.ctrl_cmd_msg=CtrlCmd()
