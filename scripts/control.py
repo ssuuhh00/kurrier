@@ -5,11 +5,11 @@ import rospy
 from math import cos,sin,sqrt,pow,atan2
 from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry,Path
-from morai_msgs.msg import CtrlCmd
+from morai_msgs.msg import CtrlCmd, EventInfo
 from std_msgs.msg import Int16, Bool
 import numpy as np
 from tf.transformations import euler_from_quaternion
-from kurrier.msg import mission, obstacle, EventInfo  # 사용자 정의 메시지 임포트 
+from kurrier.msg import mission, obstacle   # 사용자 정의 메시지 임포트 
 from morai_msgs.srv import MoraiEventCmdSrv, MoraiEventCmdSrvRequest
 
 class pure_pursuit :
@@ -43,7 +43,7 @@ class pure_pursuit :
         self.mission_info = mission()
 
         self.doing_parking = False
-        self.do_parking = False
+        self.check_finish = False
 
         # MoraiEventCmdSrv 서비스 클라이언트 (서비스가 사용 가능할 때까지 대기)
         rospy.loginfo("Waiting for /Service_MoraiEventCmd service...")
@@ -86,7 +86,7 @@ class pure_pursuit :
                 theta=atan2(local_path_point[1],local_path_point[0])
                 default_vel = 15
 
-                if self.mission_info.mission_num == 8 and self.do_parking:
+                if (self.mission_info.mission_num == 8) and (self.check_finish):
                     if not self.doing_parking:
                         self.ctrl_cmd_msg.velocity = 0
                         self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
@@ -165,7 +165,7 @@ class pure_pursuit :
         self.traffic_color = msg 
 
     def parking_callback(self, msg):
-        self.do_parking = msg 
+        self.check_finish = msg 
     
 if __name__ == '__main__':
     try:

@@ -30,7 +30,7 @@ class FinishNode:
 class CollisionHandler:
     def __init__(self):
         # collision_handler 노드 초기화
-        rospy.init_node('collision_handler', anonymous=True)
+        rospy.init_node('collision_handler', anonymous=False)
         
         # 상태 플래그 초기화
         self.collision_detected = False
