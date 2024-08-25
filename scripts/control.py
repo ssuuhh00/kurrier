@@ -29,6 +29,7 @@ class pure_pursuit :
         rospy.Subscriber("traffic_light_color", Int16, self.traffic_callback)
         rospy.Subscriber("/check_finish", Bool, self.finish_callback)
 
+        self.stop_pub = rospy.Publisher('/is_stop', Bool, queue_size=1)
         self.ctrl_cmd_pub = rospy.Publisher('/ctrl_cmd',CtrlCmd, queue_size=10)
         self.ctrl_cmd_msg=CtrlCmd()
         self.ctrl_cmd_msg.longlCmdType=2
@@ -104,7 +105,6 @@ class pure_pursuit :
                         if not self.M7_complete:
                             if not self.is_stopped:
                                 self.stop_vehicle()
-                                self.is_stopped = True
                             else:
                                 # 초록불에만 출발
                                 if self.traffic_light_color==3:
@@ -121,14 +121,20 @@ class pure_pursuit :
                             # if not self.is_stopped:
                                 self.stop_vehicle()
                                 self.send_gear_cmd(Gear.P.value)
-                                # self.is_stopped = True
                         else:
                             self.ctrl_cmd_msg.velocity = default_vel
+
+                    elif self.mission_info.mission_num == 3:
+                        if self.mission_info.count == 1:
+                            self.stop_vehicle()
+                        else:
+                            self.ctrl_cmd_msg.velocity = default_vel*(1-0.6*normalized_steer)
+                            self.is_stopped = False
                     else:
                         self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
 
                 else : 
-                    print("no found forward point")
+                    rospy.loginfo_once("no found forward point")
                     self.ctrl_cmd_msg.steering=0.0
                     self.ctrl_cmd_msg.velocity=0.0
                 
@@ -159,7 +165,7 @@ class pure_pursuit :
         self.traffic_color = msg 
 
     def finish_callback(self, msg):
-            self.is_finish = msg.data
+        self.is_finish = msg.data
 
     def send_gear_cmd(self, gear_mode):
         #기어 변경 요청을 서비스 콜을 통해 전송하고 성공 여부를 반환
@@ -188,10 +194,15 @@ class pure_pursuit :
         self.ctrl_cmd_msg.steering = 0.0  # 조향 각도를 0으로 설정
         self.ctrl_cmd_msg.brake = 1.0  # 최대 제동력
         self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
-        # 2초 후에 이벤트 명령을 보내기 위해 대기
-        rospy.sleep(2)
-        self.ctrl_cmd_msg.brake = 0  #브레이크 끄기
+        # 완전정지를 위해 3초 대기
+        rospy.sleep(3)
         rospy.loginfo("Vehicle stopped") 
+        # 정지후 다른 노드들 행동을 기다리기 위해 정지신호 pub후 3초 추가 대기
+        self.is_stopped = True
+        self.stop_pub.publish(self.is_stopped)
+        rospy.sleep(3)
+        #브레이크 끄기
+        self.ctrl_cmd_msg.brake = 0
 
         
 if __name__ == '__main__':

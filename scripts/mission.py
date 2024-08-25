@@ -15,29 +15,19 @@ class MissionNode:
 
         self.current_position = Point()
         self.mission_info = mission()
-        self.is_slam_started = False
 
         self.proximity_threshold = 3.0
 
-        # 미션 0 시작점
-        # 미션 1 차간간격1
-        # 미션 2 정적장애물
-        # 미션 3 gps음영1(공사장 장애물 회피)
-        # 미션 4 동적장애물(주차)
-        # 미션 5 끼어들기2
-        # 미션 51 차간간격2        
-        # 미션 6 gps음영2(장애물)
-        # 미션 61 gps 음영구간 끝나는 곳
-        # 미션 7 신호등
-        # 미션 71 신호등 사거리 정지선 지점에 멈출수있게 그지점 3미터 전 지점
-        # 미션 8 END지점 찾기
+        self.previous_mission_num = -1  # 이전 미션 번호 저장
+        self.count_timer = None  # 카운트를 증가시키는 타이머
+        self.count_duration = 0  # 현재 카운트 시간 저장
 
         # Define missions with coordinates
         self.missions = [
             {'mission_number': 0, 'x': -93.40589900134364, 'y': 17.37121018813923},
             {'mission_number': 1, 'x': -118.53937525855144, 'y': 4.976131527218968},
             {'mission_number': 2, 'x': -147.8114318390144, 'y': 28.72403534920886},
-            {'mission_number': 3, 'x': -147.366516067239, 'y': 78.13069733697921},
+            {'mission_number': 3, 'x': -147.42292780935531, 'y': 75.13428315287456},
             {'mission_number': 4, 'x': -72.11734004126629, 'y': 111.0132733262144},
             {'mission_number': 5, 'x': 12.72007946803933, 'y': 110.19885071832687},
             {'mission_number': 51, 'x': -0.06720089790178463, 'y': 94.99975404236466},
@@ -63,6 +53,16 @@ class MissionNode:
         """Calculate Euclidean distance between two points."""
         return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
+    def count_timer_callback(self, event):
+        """Callback function for the timer to increase the count."""
+        if self.count_duration < 5:
+            self.mission_info.count += 1
+            self.count_duration += 1
+        else:
+            self.mission_info.count = 0
+            self.count_timer.shutdown()  # Stop the timer after 5 seconds
+            self.count_duration = 0  # Reset count duration
+
     def update_mission(self):
         """Update the current mission based on the current position."""
         # Iterate through missions to find the one we're currently targeting
@@ -71,7 +71,18 @@ class MissionNode:
             
             if dist < self.proximity_threshold:
                 # Mission reached, update mission info
-                self.mission_info.mission_num = mission['mission_number']
+                if mission['mission_number'] != self.previous_mission_num:
+                    self.mission_info.mission_num = mission['mission_number']
+                    self.mission_info.count = 1  # Reset and start count at 1
+                    self.previous_mission_num = mission['mission_number']
+
+                    if self.count_timer is not None:
+                        self.count_timer.shutdown()  # Stop the previous timer if it exists
+                    
+                    # Start a new repeating timer to increment the count every second for 5 seconds
+                    self.count_duration = 1  # Initialize count duration
+                    self.count_timer = rospy.Timer(rospy.Duration(1.0), self.count_timer_callback, oneshot=False)
+
 
 if __name__ == '__main__':
     try:
