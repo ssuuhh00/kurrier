@@ -25,12 +25,13 @@ class LatticePlanner:
         self.is_path = False
         self.is_obj = False
         self.is_lattice_started = False
+        self.is_1st_slam_started = False
         self.local_path = None
         self.is_odom=False
 
         rate = rospy.Rate(30)  # 30hz
         while not rospy.is_shutdown():
-            if self.is_lattice_started:
+            if self.is_lattice_started or self.is_1st_slam_started:
                 if self.is_path and self.is_odom and self.is_obj:
                     if self.checkObject(self.local_path, self.object_points):
                         lattice_path = self.latticePlanner(self.local_path, self.odom_msg)
@@ -39,7 +40,7 @@ class LatticePlanner:
                     else:
                         self.lattice_path_pub.publish(self.local_path)
                 else:
-                    #rospy.logwarn("Not enough information to compute lattice path.")
+                    rospy.logwarn("Not enough information to compute lattice path.")
                     if self.local_path is not None:
                         self.lattice_path_pub.publish(self.local_path)
             else:
@@ -48,12 +49,20 @@ class LatticePlanner:
             rate.sleep()
 
     def mission_callback(self, msg):
-        # gps음영 미션 시작
+        # 정적장애물 미션 시작
         if msg.mission_num == 2 and not self.is_lattice_started:
             self.is_lattice_started = True
-        # gps음영 미션 끝
+        # 정적장애물 미션 끝
         elif msg.mission_num != 2 and self.is_lattice_started:
             self.is_lattice_started = False
+        
+        # GPS 음영 미션 시작
+        elif msg.mission_num == 3 and not self.is_1st_slam_started:
+                self.is_1st_slam_started = True
+
+        # gps음영 미션 끝
+        elif msg.mission_num != 3 and self.is_1st_slam_started:
+            self.is_1st_slam_started = False
 
     def checkObject(self, ref_path, object_points):
         is_crash = False

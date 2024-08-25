@@ -22,6 +22,19 @@ class MissionNode:
         self.count_timer = None  # 카운트를 증가시키는 타이머
         self.count_duration = 0  # 현재 카운트 시간 저장
 
+        # 미션 0 시작점
+        # 미션 1 차간간격1
+        # 미션 2 정적장애물
+        # 미션 3 gps음영1(공사장 장애물 회피)
+        # 미션 4 동적장애물(주차)
+        # 미션 5 끼어들기2
+        # 미션 51 차간간격2        
+        # 미션 6 gps음영2(장애물)
+        # 미션 61 gps 음영구간 끝나는 곳
+        # 미션 7 신호등
+        # 미션 71 신호등 사거리 정지선 지점에 멈출수있게 그지점 3미터 전 지점
+        # 미션 8 END지점 찾기
+        
         # Define missions with coordinates
         self.missions = [
             {'mission_number': 0, 'x': -93.40589900134364, 'y': 17.37121018813923},
