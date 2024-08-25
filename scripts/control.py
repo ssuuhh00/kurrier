@@ -50,11 +50,14 @@ class pure_pursuit :
         self.mission_info = mission()
 
         self.is_finish = False
-        self.stopped = False
+        self.is_stopped = False
+        self.M7_complete = False
         
         # 기어 변경 서비스 설정
+        rospy.loginfo("connecting service")
         rospy.wait_for_service('/Service_MoraiEventCmd', timeout=5)
         self.event_cmd_srv = rospy.ServiceProxy('Service_MoraiEventCmd', MoraiEventCmdSrv)
+        rospy.loginfo("service connected")
 
         rate = rospy.Rate(15) # 15hz
         while not rospy.is_shutdown():
@@ -92,23 +95,42 @@ class pure_pursuit :
                 default_vel = 15
 
                 if self.is_look_forward_point :
-                    # 조향각
+                    # steering
                     self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)  
-                    normalized_steer = abs(self.ctrl_cmd_msg.steering)/0.6981          
-                    # 기본 속도
-                    self.ctrl_cmd_msg.velocity = default_vel
+                    # normalized_steer = abs(self.ctrl_cmd_msg.steering)/0.6981          
 
-                    if self.mission_info.mission_num == 7:
-                        if  self.traffic_light_color==0:
-                            self.ctrl_cmd_msg.velocity = 0.7 * default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
-                        elif self.traffic_light_color==1 or self.traffic_light_color==2:
-                            self.ctrl_cmd_msg.velocity = 0
-                        elif self.traffic_light_color==3:
-                            self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
+                    # velocity
+                    # if self.mission_info.mission_num == 7:
+                    #     if  self.traffic_light_color==0:
+                    #         self.ctrl_cmd_msg.velocity = 0.7 * default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
+                    #     elif self.traffic_light_color==1 or self.traffic_light_color==2:
+                    #         self.ctrl_cmd_msg.velocity = 0
+                    #     elif self.traffic_light_color==3:
+                    #         self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
+                    # el
+                    if self.mission_info.mission_num == 71:
+                        if not self.M7_complete:
+                            if not self.is_stopped:
+                                self.stop_vehicle()
+                                self.is_stopped = True
+                            else:
+                                # 초록불에만 출발
+                                if self.traffic_light_color==3:
+                                    self.ctrl_cmd_msg.brake = 0
+                                    self.ctrl_cmd_msg.velocity = default_vel
+                                    self.is_stopped = False
+                                    self.M7_complete = True
+                                else:
+                                    self.ctrl_cmd_msg.velocity = 0
+                        else:
+                            self.ctrl_cmd_msg.velocity = default_vel
+
                     elif self.mission_info.mission_num == 8:
                         if self.is_finish:
-                            self.stop_vehicle()
-                            self.send_gear_cmd(Gear.P.value)
+                            if not self.is_stopped:
+                                self.stop_vehicle()
+                                self.send_gear_cmd(Gear.P.value)
+                                self.is_stopped = True
                         else:
                             self.ctrl_cmd_msg.velocity = default_vel
                     else:
@@ -146,9 +168,7 @@ class pure_pursuit :
         self.traffic_color = msg 
 
     def finish_callback(self, msg):
-        if not self.stopped:
             self.is_finish = msg.data
-            self.stopped = True
 
     def send_gear_cmd(self, gear_mode):
         #기어 변경 요청을 서비스 콜을 통해 전송하고 성공 여부를 반환
@@ -172,9 +192,7 @@ class pure_pursuit :
             return False
         
     def stop_vehicle(self):
-        """
-        차량을 완전히 정지시키기 위해 속도를 0으로 설정하고 조향 각도를 0으로 설정, 브레이크를 적용
-        """
+        # 차량을 완전히 정지시키기 위해 속도를 0으로 설정하고 조향 각도를 0으로 설정, 브레이크를 적용
         self.ctrl_cmd_msg.velocity = 0.0
         self.ctrl_cmd_msg.steering = 0.0  # 조향 각도를 0으로 설정
         self.ctrl_cmd_msg.brake = 1.0  # 최대 제동력

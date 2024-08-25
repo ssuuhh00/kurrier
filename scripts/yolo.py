@@ -81,7 +81,7 @@ class YoloNode:
             roi_y1 = int(frame_height * 0.4)
             roi_y2 = int(frame_height * 0.83)
         
-        elif mission_num == 2 or mission_num == 4 or mission_num == 7:
+        elif mission_num == 2 or mission_num == 4 or mission_num == 6:
             # 정적장애물 및 동적(보행자 감지)
             roi_x1 = int(frame_width*0.05)
             roi_x2 = int(frame_width * 0.95)
@@ -232,7 +232,7 @@ class YoloNode:
     def compute_highest_collision_probability(self, predicted_boxes, frame):
         height, width, _ = frame.shape
         center_x, center_y = width//2, int(height *0.66)
-        if self.mission_info.mission_num == 8 :
+        if self.mission_info.mission_num == 7 :
             roi_x1 = int(width* 0.1)
             roi_x2 = int(width * 0.9)
             roi_y1 = int(height * 0.35 )
@@ -327,10 +327,10 @@ class YoloNode:
             if self.mission_info.mission_num in [0,1,5,51]:  # 끼어들기, 차간간격
                 self.calculate_collision_probability(self.latest_frame)
             
-            elif self.mission_info.mission_num in [2,4,7]:  # 동적 장애물 감지
+            elif self.mission_info.mission_num in [2,4,6]:  # 동적 장애물 감지
                 self.calculate_collision_probability(self.latest_frame)
             
-            elif self.mission_info.mission_num == 8:  # 신호등 탐지 미션
+            elif self.mission_info.mission_num == 7:  # 신호등 탐지 미션
                 self.calculate_collision_probability(self.latest_frame.copy())
                 # ROI 설정
                 roi_x1, roi_y1, roi_x2, roi_y2 = self.set_roi_by_mission(self.mission_info.mission_num, 
