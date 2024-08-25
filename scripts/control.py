@@ -97,6 +97,7 @@ class pure_pursuit :
                 if self.is_look_forward_point :
                     # steering
                     self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)  
+                    normalized_steer = abs(self.ctrl_cmd_msg.steering)/0.6981          
 
                     # velocity
                     if self.mission_info.mission_num == 71:
@@ -118,15 +119,13 @@ class pure_pursuit :
                     elif self.mission_info.mission_num == 8:
                         if self.is_finish:
                             # if not self.is_stopped:
-                            #     self.stop_vehicle()
-                            #     self.send_gear_cmd(Gear.P.value)
-                            #     self.is_stopped = True
-                            self.stop_vehicle()
-                            self.send_gear_cmd(Gear.P.value)
+                                self.stop_vehicle()
+                                self.send_gear_cmd(Gear.P.value)
+                                # self.is_stopped = True
                         else:
                             self.ctrl_cmd_msg.velocity = default_vel
                     else:
-                        self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))
+                        self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
 
                 else : 
                     print("no found forward point")
