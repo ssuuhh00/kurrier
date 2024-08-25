@@ -7,4 +7,3 @@
     <node pkg="kurrier" type="control.py" name="control" output="screen"/>
     <node pkg="kurrier" type="check_finish.py" name="check_finish"/>
 </launch>
-
