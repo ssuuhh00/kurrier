@@ -92,22 +92,13 @@ class pure_pursuit :
                             break
                 
                 theta=atan2(local_path_point[1],local_path_point[0])
-                default_vel = 15
+                default_vel = 10
 
                 if self.is_look_forward_point :
                     # steering
                     self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)  
-                    # normalized_steer = abs(self.ctrl_cmd_msg.steering)/0.6981          
 
                     # velocity
-                    # if self.mission_info.mission_num == 7:
-                    #     if  self.traffic_light_color==0:
-                    #         self.ctrl_cmd_msg.velocity = 0.7 * default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
-                    #     elif self.traffic_light_color==1 or self.traffic_light_color==2:
-                    #         self.ctrl_cmd_msg.velocity = 0
-                    #     elif self.traffic_light_color==3:
-                    #         self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
-                    # el
                     if self.mission_info.mission_num == 71:
                         if not self.M7_complete:
                             if not self.is_stopped:
@@ -116,7 +107,6 @@ class pure_pursuit :
                             else:
                                 # 초록불에만 출발
                                 if self.traffic_light_color==3:
-                                    self.ctrl_cmd_msg.brake = 0
                                     self.ctrl_cmd_msg.velocity = default_vel
                                     self.is_stopped = False
                                     self.M7_complete = True
@@ -127,15 +117,17 @@ class pure_pursuit :
 
                     elif self.mission_info.mission_num == 8:
                         if self.is_finish:
-                            if not self.is_stopped:
-                                self.stop_vehicle()
-                                self.send_gear_cmd(Gear.P.value)
-                                self.is_stopped = True
+                            # if not self.is_stopped:
+                            #     self.stop_vehicle()
+                            #     self.send_gear_cmd(Gear.P.value)
+                            #     self.is_stopped = True
+                            self.stop_vehicle()
+                            self.send_gear_cmd(Gear.P.value)
                         else:
                             self.ctrl_cmd_msg.velocity = default_vel
                     else:
-                        self.ctrl_cmd_msg.velocity = default_vel
-                        
+                        self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))
+
                 else : 
                     print("no found forward point")
                     self.ctrl_cmd_msg.steering=0.0
@@ -199,6 +191,7 @@ class pure_pursuit :
         self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
         # 2초 후에 이벤트 명령을 보내기 위해 대기
         rospy.sleep(2)
+        self.ctrl_cmd_msg.brake = 0  #브레이크 끄기
         rospy.loginfo("Vehicle stopped") 
 
         
