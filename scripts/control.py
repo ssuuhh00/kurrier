@@ -130,6 +130,13 @@ class pure_pursuit :
                         else:
                             self.ctrl_cmd_msg.velocity = default_vel*(1-0.6*normalized_steer)
                             self.is_stopped = False
+
+                    elif self.mission_info.mission_num == 6:
+                        if self.mission_info.count == 1:
+                            self.stop_vehicle()
+                        else:
+                            self.ctrl_cmd_msg.velocity = default_vel
+                            self.is_stopped = False
                     else:
                         self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1-0.6*normalized_steer)
 

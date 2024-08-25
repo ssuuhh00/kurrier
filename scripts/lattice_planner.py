@@ -98,11 +98,11 @@ class LatticePlanner:
     def odom_callback(self, msg):
         self.is_odom = True
         self.odom_msg = msg
-        rospy.loginfo("Vehicle status received and stored. is_odom = True")
+        rospy.loginfo("odom received and stored. is_odom = True")
 
     def object_callback(self, msg):
         if not self.is_odom:
-            rospy.logwarn("Vehicle status not received yet, skipping object processing.")
+            rospy.logwarn("odom not received yet, skipping object processing.")
             return
 
         self.is_obj = True

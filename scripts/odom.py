@@ -146,7 +146,7 @@ class TFNode:
                 self.is_2nd_slam_started = True
 
         # gps음영 미션 끝
-        elif msg.mission_num != 3 and self.is_2nd_slam_started:
+        elif msg.mission_num != 6 and self.is_2nd_slam_started:
             self.start_position = Odometry()
             self.is_2nd_slam_started = False
             self.initial_yaw = None
