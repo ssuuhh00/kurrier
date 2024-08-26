@@ -27,7 +27,7 @@ class YoloNode:
 
         # GPU 사용 설정
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.path = '/home/jmj/yolov8n.pt'
+        self.path = 'yolov8n.pt'
         self.model = YOLO(self.path)
         self.model = self.model.to(self.device)
         # YOLO 모델을 GPU에 로드
