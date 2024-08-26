@@ -32,3 +32,7 @@
     슬램 끄는거 완료
     키는법 : kurrier.launch 이거만 키면됨
     SaveFile 압축 풀어서 모라이 런처 폴더 안에 모라이 런처 데이터 안에 SaveFile 폴더 대체 하면 됨
+
+0826
+
+    lfd =? look_distance

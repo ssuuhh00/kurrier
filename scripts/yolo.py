@@ -330,7 +330,7 @@ class YoloNode:
             elif self.mission_info.mission_num in [2,4,6]:  # 동적 장애물 감지
                 self.calculate_collision_probability(self.latest_frame)
             
-            elif self.mission_info.mission_num == 7:  # 신호등 탐지 미션
+            elif self.mission_info.mission_num == 71:  # 신호등 탐지 미션
                 self.calculate_collision_probability(self.latest_frame.copy())
                 # ROI 설정
                 roi_x1, roi_y1, roi_x2, roi_y2 = self.set_roi_by_mission(self.mission_info.mission_num, 

@@ -9,7 +9,7 @@ from pyproj import Proj
 from kurrier.msg import mission  # 사용자 정의 메시지 임포트
 from tf.transformations import euler_from_quaternion
 from math import sin, cos
-from std_msgs.msg import Int16, Bool
+from std_msgs.msg import Bool
 
 class TFNode:
     def __init__(self):

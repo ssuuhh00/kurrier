@@ -91,13 +91,13 @@ class LatticePlanner:
     def collision_check(self, object_points, out_path):
         selected_lane = -1
         
-        lane_weight = [3, 2, 1, 1, 2, 3]  # 원본
+        lane_weight = [1, 1, 1, 1, 1, 1]  # 원본
 
         for point in object_points:
             for path_num in range(len(out_path)):
                 for path_pos in out_path[path_num].poses:
                     dis = sqrt(pow(point[0] - path_pos.pose.position.x, 2) + pow(point[1] - path_pos.pose.position.y, 2))
-                    if dis < 1.5:  # 1.5보다 크게 설정을 하게 되면 장애물과의 거리가 더 큰 경로를 선택할 수 있게
+                    if dis < 1.7:  # 1.5보다 크게 설정을 하게 되면 장애물과의 거리가 더 큰 경로를 선택할 수 있게
                         lane_weight[path_num] += 100
 
         selected_lane = lane_weight.index(min(lane_weight))
