@@ -48,4 +48,3 @@
     신호등 완료
     동적장애물 완료
     slam 위치 오차 해결
-    lfd =? look_distance
