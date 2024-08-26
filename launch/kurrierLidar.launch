@@ -3,4 +3,3 @@
     <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch"/>
     <node pkg="kurrier" type="velodyne_cluster.py" name="SCANCluster"/>
 </launch>
-

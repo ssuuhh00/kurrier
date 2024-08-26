@@ -57,25 +57,25 @@ class LatticePlanner:
         elif msg.mission_num != 2 and self.is_lattice_started:
             self.is_lattice_started = False
         
-        # GPS 음영 미션 시작
-        elif msg.mission_num == 3 and not self.is_1st_slam_started:
-            self.is_lattice_started = True
-            self.is_1st_slam_started = True
+        # # GPS 음영 미션 시작
+        # elif msg.mission_num == 3 and not self.is_1st_slam_started:
+        #     self.is_lattice_started = True
+        #     self.is_1st_slam_started = True
 
-        # gps음영 미션 끝
-        elif msg.mission_num != 3 and self.is_1st_slam_started:
-            self.is_lattice_started = False
-            self.is_1st_slam_started = False        
+        # # gps음영 미션 끝
+        # elif msg.mission_num != 3 and self.is_1st_slam_started:
+        #     self.is_lattice_started = False
+        #     self.is_1st_slam_started = False        
             
-        # GPS 음영 미션 시작
-        elif msg.mission_num == 6 and not self.is_2nd_slam_started:
-            self.is_lattice_started = True
-            self.is_2nd_slam_started = True
+        # # GPS 음영 미션 시작
+        # elif msg.mission_num == 6 and not self.is_2nd_slam_started:
+        #     self.is_lattice_started = True
+        #     self.is_2nd_slam_started = True
 
-        # gps음영 미션 끝
-        elif msg.mission_num != 6 and self.is_2nd_slam_started:
-            self.is_lattice_started = False
-            self.is_2nd_slam_started = False
+        # # gps음영 미션 끝
+        # elif msg.mission_num != 6 and self.is_2nd_slam_started:
+        #     self.is_lattice_started = False
+        #     self.is_2nd_slam_started = False
 
     def checkObject(self, ref_path, object_points):
         is_crash = False
