@@ -108,13 +108,13 @@ class pure_pursuit :
                             else:
                                 # 초록불에만 출발
                                 if self.traffic_light_color==3:
-                                    self.ctrl_cmd_msg.velocity = default_vel
+                                    self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1-0.5*normalized_steer)
                                     self.is_stopped = False
                                     self.M7_complete = True
                                 else:
                                     self.ctrl_cmd_msg.velocity = 0
                         else:
-                            self.ctrl_cmd_msg.velocity = default_vel
+                            self.ctrl_cmd_msg.velocity = default_vel*(1.0-(self.obstacle.collision_probability/100))*(1-0.5*normalized_steer)
 
                     elif self.mission_info.mission_num == 8:
                         if self.is_finish:

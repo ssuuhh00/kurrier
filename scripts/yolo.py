@@ -27,7 +27,7 @@ class YoloNode:
 
         # GPU 사용 설정
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.path = '/home/lsh/yolov8n.pt'
+        self.path = '/home/jmj/yolov8n.pt'
         self.model = YOLO(self.path)
         self.model = self.model.to(self.device)
         # YOLO 모델을 GPU에 로드
@@ -81,7 +81,7 @@ class YoloNode:
             roi_y1 = int(frame_height * 0.4)
             roi_y2 = int(frame_height * 0.83)
         
-        elif mission_num == 2 or mission_num == 4 or mission_num == 6:
+        elif mission_num == 2 or mission_num == 6:
             # 정적장애물 및 동적(보행자 감지)
             roi_x1 = int(frame_width*0.05)
             roi_x2 = int(frame_width * 0.95)
@@ -95,7 +95,7 @@ class YoloNode:
             roi_y1 = int(frame_height * 0.43)
             roi_y2 = int(frame_height * 0.75)
 
-        elif mission_num == 7:
+        elif mission_num == 71:
             #신호등 감지 미션, 상단 중앙 영역을 ROI로 설정
             
             roi_x1 = int(0.44 * frame_width)
@@ -327,7 +327,7 @@ class YoloNode:
             if self.mission_info.mission_num in [0,1,5,51]:  # 끼어들기, 차간간격
                 self.calculate_collision_probability(self.latest_frame)
             
-            elif self.mission_info.mission_num in [2,4,6]:  # 동적 장애물 감지
+            elif self.mission_info.mission_num in [2,4,6,7]:  # 동적 장애물 감지
                 self.calculate_collision_probability(self.latest_frame)
             
             elif self.mission_info.mission_num == 71:  # 신호등 탐지 미션
@@ -373,3 +373,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+    ##waw
