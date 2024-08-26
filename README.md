@@ -44,6 +44,8 @@
     SaveFile 압축 풀어서 모라이 런처 폴더 안에 모라이 런처 데이터 안에 SaveFile 폴더 대체 하면 됨
 
 0826
+
     신호등 완료
     동적장애물 완료
+    slam 위치 오차 해결
     lfd =? look_distance

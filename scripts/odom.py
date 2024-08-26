@@ -38,7 +38,8 @@ class TFNode:
         self.odom_msg=Odometry()
         self.odom_msg.header.frame_id='/odom'
         self.odom_msg.child_frame_id='/base_link'
-
+        self.odom_slam_msg=Odometry()
+        
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
             if not (self.is_1st_slam_started or self.is_2nd_slam_started):
@@ -47,7 +48,19 @@ class TFNode:
                     self.odom_pub.publish(self.odom_msg)
                 self.is_gps = self.is_imu = False
             elif (self.is_1st_slam_started or self.is_2nd_slam_started) and self.is_slam_odom:
-                self.odom_pub.publish(self.odom_msg)
+                if (self.start_position is not None) and (self.initial_yaw is not None):
+                    # SLAM으로부터 받은 차량의 로컬 좌표 위치를 저장
+                    x1 = self.odom_slam_msg.pose.pose.position.x
+                    y1 = self.odom_slam_msg.pose.pose.position.y
+                    # # 라이다 gps 센서 위치 차이보정
+                    x1 += 1.33
+                    # 위치 설정
+                    self.odom_msg.pose.pose.position.x = self.start_position.pose.pose.position.x + cos(self.initial_yaw) * x1 - sin(self.initial_yaw) * y1
+                    self.odom_msg.pose.pose.position.y = self.start_position.pose.pose.position.y + sin(self.initial_yaw) * x1 + cos(self.initial_yaw) * y1
+                    self.odom_msg.pose.pose.position.z = self.start_position.pose.pose.position.z
+                    self.odom_pub.publish(self.odom_msg)
+                else: 
+                    rospy.loginfo("start_position or initial_yaw is None")
                 self.is_slam_odom = False
             rate.sleep()
 
@@ -104,6 +117,10 @@ class TFNode:
     def stop_callback(self, msg):
         self.is_stopped = msg.data
 
+    def liorf_callback(self, msg):
+        self.odom_slam_msg = msg
+        self.is_slam_odom = True
+
     def mission_callback(self, msg):
         # GPS 음영 미션 시작
         if msg.mission_num == 3 and not self.is_1st_slam_started:
@@ -150,19 +167,6 @@ class TFNode:
             self.start_position = Odometry()
             self.is_2nd_slam_started = False
             self.initial_yaw = None
-
-    def liorf_callback(self, msg):
-        if self.is_1st_slam_started or self.is_2nd_slam_started:
-            if self.start_position is not None:
-                # SLAM으로부터 받은 차량의 로컬 좌표 위치를 저장
-                x = msg.pose.pose.position.x
-                y = msg.pose.pose.position.y
-                
-                # 위치 설정
-                self.odom_msg.pose.pose.position.x = self.start_position.pose.pose.position.x + cos(self.initial_yaw) * x - sin(self.initial_yaw) * y
-                self.odom_msg.pose.pose.position.y = self.start_position.pose.pose.position.y + sin(self.initial_yaw) * x + cos(self.initial_yaw) * y
-                self.odom_msg.pose.pose.position.z = self.start_position.pose.pose.position.z
-                self.is_slam_odom = True
 
     
 if __name__ == '__main__':

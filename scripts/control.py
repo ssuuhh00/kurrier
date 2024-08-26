@@ -93,7 +93,7 @@ class pure_pursuit:
                             break
 
                 theta = atan2(local_path_point[1], local_path_point[0])
-                default_vel = 15
+                default_vel = 10
 
                 if self.is_look_forward_point:
                     
@@ -125,7 +125,7 @@ class pure_pursuit:
                             self.ctrl_cmd_msg.velocity = default_vel * (1.0 - (self.obstacle.collision_probability / 100)) * (1 - 0.5 * normalized_steer)
 
                     elif self.mission_info.mission_num == 8:
-                        rospy.loginfo_once("Mission 8: Parking maneuver")
+                        rospy.loginfo_once("Mission 8: End")
                         self.M7_complete = False  # 신호등 미션 디버깅용
                         if self.is_finish:
                             self.stop_vehicle()
@@ -134,7 +134,7 @@ class pure_pursuit:
                             self.ctrl_cmd_msg.velocity = default_vel
 
                     elif self.mission_info.mission_num == 3:
-                        rospy.loginfo_once("Mission 3: Specific obstacle handling")
+                        rospy.loginfo_once("Mission 3: Slam")
                         
                         if self.mission_info.count == 1:
                             self.stop_vehicle()
@@ -143,7 +143,7 @@ class pure_pursuit:
                             self.is_stopped = False
 
                     elif self.mission_info.mission_num == 6:
-                        rospy.loginfo_once("Mission 6: Speed and steering management")
+                        rospy.loginfo_once("Mission 6: Slam")
                         
                         if self.mission_info.count == 1:
                             self.stop_vehicle()
@@ -212,11 +212,11 @@ class pure_pursuit:
         self.ctrl_cmd_msg.steering = 0.0  # 조향 각도를 0으로 설정
         self.ctrl_cmd_msg.brake = 1.0  # 최대 제동력
         self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
-        rospy.sleep(3)
+        rospy.sleep(5)
         rospy.loginfo("Vehicle stopped")
         self.is_stopped = True
         self.stop_pub.publish(self.is_stopped)
-        rospy.sleep(3)
+        rospy.sleep(5)
         self.ctrl_cmd_msg.brake = 0
 
 if __name__ == '__main__':
