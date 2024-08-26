@@ -93,7 +93,7 @@ class pure_pursuit:
                             break
 
                 theta = atan2(local_path_point[1], local_path_point[0])
-                default_vel = 10
+                default_vel = 15
 
                 if self.is_look_forward_point:
                     
