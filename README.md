@@ -1,9 +1,25 @@
 # KURRIER
 
-키는법
+실행
 
-    kurrier.launch 키고 옆에 kurrierLidar.launch 키면 됨
+    roslaunch kurrier kurrier.launch
+    roslaunch kurrier kurrierLidar.launch
+
     kurrier.launch 이거 열어서 원하는거에 output="screen" 이 옵션 달아주면 디버깅 편함
+
+미션
+    # 미션 0 시작점
+    # 미션 1 차간간격1
+    # 미션 2 정적장애물
+    # 미션 3 gps음영1(공사장 장애물 회피)
+    # 미션 4 주차
+    # 미션 5 끼어들기2
+    # 미션 51 차간간격2        
+    # 미션 6 gps음영2(장애물)
+    # 미션 61 gps 음영구간 끝나는 곳
+    # 미션 7 신호등
+    # 미션 71 신호등 사거리 정지선 지점에 멈출수있게 그지점 3미터 전 지점
+    # 미션 8 END지점 찾기
 
 할 일
     
@@ -19,9 +35,6 @@
 
 0824
 
-    # 미션 4 동적장애물
-    # 미션 41 주차
-    두개가 다르면 안됨
     미션 8 마무리
 
 0825
@@ -31,5 +44,6 @@
     SaveFile 압축 풀어서 모라이 런처 폴더 안에 모라이 런처 데이터 안에 SaveFile 폴더 대체 하면 됨
 
 0826
-
+    신호등 완료
+    동적장애물 완료
     lfd =? look_distance

@@ -51,6 +51,7 @@ add_message_files(
   FILES
   mission.msg
   obstacle.msg
+  lidarroi.msg
 )
 ## Generate services in the 'srv' folder
 
