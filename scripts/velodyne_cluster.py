@@ -16,7 +16,7 @@ class SCANCluster:
         self.scan_sub = rospy.Subscriber("/velodyne_points", PointCloud2, self.callback)
         self.clusterpoints_pub = rospy.Publisher("/cluster_points", PointCloud2, queue_size=10)
         self.pc_np = None
-        self.dbscan = DBSCAN(eps=0.1, min_samples=20)
+        self.dbscan = DBSCAN(eps=0.3, min_samples=30)
 
     def callback(self, msg):
         self.pc_np = self.pointcloud2_to_xyz(msg)
