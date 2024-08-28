@@ -30,6 +30,7 @@ class LatticePlanner:
         self.local_path = None
         self.is_odom=False
 
+        self.is_M2 = False
 
         self.index = 20  # 경로 생성 끝점
 
@@ -80,8 +81,9 @@ class LatticePlanner:
         if msg.mission_num == 2 and not self.is_lattice_started:
             self.is_lattice_started = True
         # 정적장애물 미션 끝
-        elif msg.mission_num != 2 and self.is_lattice_started:
+        elif msg.mission_num != 2 and self.is_lattice_started and not self.is_M2:
             self.is_lattice_started = False
+            self.is_M2 = True
         
         # GPS 음영 미션 시작
         elif msg.mission_num == 3 and not self.is_1st_slam_started:
