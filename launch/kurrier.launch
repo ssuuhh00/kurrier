@@ -2,13 +2,12 @@
     <node pkg="kurrier" type="odom.py" name="odom" output="screen"/>
     <node pkg="kurrier" type="mission.py" name="mission"/>
     <node pkg="kurrier" type="planning.py" name="planning"/>
-    <node pkg="kurrier" type="lattice_planner.py" name="lattice_planner"/> 
     <node pkg="kurrier" type="yolo.py" name="yolo"/>
-    <node pkg="kurrier" type="control.py" name="control" output="screen"/>
     <node pkg="kurrier" type="check_finish.py" name="check_finish"/>
+    <node pkg="kurrier" type="parking_check.py" name="parking_check"/>
     <node pkg="kurrier" type="slamOnOff.py" name="slamOnOff"/>
+    <node pkg="kurrier" type="lattice_planner.py" name="lattice_planner"/> 
+    <node pkg="kurrier" type="control.py" name="control" output="screen"/>
     <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch"/>
     <node pkg="kurrier" type="velodyne_cluster.py" name="velodyne_cluster"/>
-    <node pkg="kurrier" type="parking_check.py" name="parking_check"/>
-    <!-- <node pkg="imu_modifier" type="slam_planning.py" name="grid_map"/> -->
 </launch>

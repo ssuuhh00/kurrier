@@ -209,7 +209,7 @@ class pure_pursuit:
                             rospy.loginfo_once("Mission 3: Slam")
                             
                             if self.mission_info.count == 1:
-                                self.stop_vehicle()
+                                self.stop_vehicle_slam()
                             else:
                                 self.ctrl_cmd_msg.velocity = default_vel * (1 - 0.6 * normalized_steer)
                                 self.is_stopped = False
@@ -218,7 +218,7 @@ class pure_pursuit:
                             rospy.loginfo_once("Mission 6: Slam")
                             
                             if self.mission_info.count == 1:
-                                self.stop_vehicle()
+                                self.stop_vehicle_slam()
                             else:
                                 self.ctrl_cmd_msg.velocity = default_vel
                                 self.is_stopped = False
@@ -287,12 +287,25 @@ class pure_pursuit:
         self.ctrl_cmd_msg.steering = 0.0  # 조향 각도를 0으로 설정
         self.ctrl_cmd_msg.brake = 1.0  # 최대 제동력
         self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
-        rospy.sleep(5)
+        rospy.sleep(3)
         rospy.loginfo("Vehicle stopped")
         self.is_stopped = True
         self.stop_pub.publish(self.is_stopped)
-        rospy.sleep(5)
+        rospy.sleep(3)
         self.ctrl_cmd_msg.brake = 0
+
+    def stop_vehicle_slam(self):
+        self.ctrl_cmd_msg.velocity = 0.0
+        self.ctrl_cmd_msg.steering = 0.0  # 조향 각도를 0으로 설정
+        self.ctrl_cmd_msg.brake = 1.0  # 최대 제동력
+        self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
+        rospy.sleep(6)
+        rospy.loginfo("Vehicle stopped")
+        self.is_stopped = True
+        self.stop_pub.publish(self.is_stopped)
+        rospy.sleep(6)
+        self.ctrl_cmd_msg.brake = 0
+
 
     def parking_mode(self):
         rospy.loginfo("Starting parking maneuver")

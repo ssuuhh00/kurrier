@@ -18,12 +18,12 @@ class RANSACFilter:
         # 클러스터링된 포인트들을 받음
         points = np.array([[p[0], p[1], p[2]] for p in pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=True)])
         
-        if points.shape[0] < 8:
+        if points.shape[0] < 10:
             rospy.logwarn("Not enough points for RANSAC.")
             return
         
         # RANSAC을 사용하여 주요 포인트 필터링
-        ransac = RANSACRegressor(residual_threshold=2.0)
+        ransac = RANSACRegressor(residual_threshold=2.2)
         ransac.fit(points[:, :2], points[:, 2])  # x, y를 독립 변수로, z를 종속 변수로 사용
         inlier_mask = ransac.inlier_mask_
 
