@@ -57,7 +57,7 @@ class slamOnOffNode:
             # imu_modifier에서 실행된 노드 종료
             subprocess.call(["rosnode", "kill", "/imu_Hz_calculator"])
             subprocess.call(["rosnode", "kill", "/imu_noise_adder"])
-            subprocess.call(["rosnode", "kill", "/slam_planning"])
+            # subprocess.call(["rosnode", "kill", "/slam_planning"])
             
     def check_mission(self):
         if self.mission_info.mission_num == 3 and not self.is_first_slam_started:
