@@ -3,7 +3,6 @@
 실행
 
     roslaunch kurrier kurrier.launch
-    roslaunch kurrier kurrierLidar.launch
 
     kurrier.launch 이거 열어서 원하는거에 output="screen" 이 옵션 달아주면 디버깅 편함
 

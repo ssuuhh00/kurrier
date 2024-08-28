@@ -31,27 +31,36 @@ class LatticePlanner:
         self.is_odom=False
 
 
-        self.lane_weight = [5, 4, 3, 2, 2, 3, 4, 5]
-
         self.index = 20  # 경로 생성 끝점
 
-        # lane_off_set 설정
-        num_paths = 8  # 생성할 경로의 개수
-        half_offset = 10 # 최대 오프셋 값 (좌우로 얼마나 떨어져 있는지)
-        max_offset = half_offset*2
+        # 인덱스에 비례하여 좌우로 커지도록 lane_off_set 설정
+        base_offset = 2.3 * 0.3 * self.index  # 인덱스 1당 30cm의 증가율 적용
 
-        # 각 경로의 오프셋 범위 계산
-        self.lane_off_set = [-(max_offset - (max_offset * i / (num_paths - 1))) for i in range(num_paths // 2)] + \
-                    [(max_offset - (max_offset * i / (num_paths - 1))) for i in range(num_paths // 2)]
+        self.lane_weight = [5, 4, 3, 2, 2, 3, 4, 5]
 
-        self.checkObject_dis = 3 # 장애물의 좌표값이 지역 경로 상의 좌표값과의 직선거리가 2.35 미만일 때 충돌이라 판단
-        self.lane_weight_distance = 3 # 생성한 경로와 장애물 사이 거리 
+        # 균등하게 나누는 값 설정 (4개의 중간 경로를 기준으로 나눔)
+        offset_steps = 7  # 8개의 경로에서 7개의 간격
+        step_size = base_offset * 2 / offset_steps  # 좌우 전체 2배를 나눈 간격
+
+        self.lane_off_set = [
+            -base_offset,  # 좌측 끝
+            -base_offset + step_size * 6,
+            -base_offset + step_size * 5,
+            -base_offset + step_size * 4,
+            base_offset - step_size * 4,
+            base_offset - step_size * 5,
+            base_offset - step_size * 6,
+            base_offset,  # 우측 끝
+        ]
+
+        self.checkObject_dis = 2.5 # 장애물의 좌표값이 지역 경로 상의 좌표값과의 직선거리가 2.35 미만일 때 충돌이라 판단
+        self.lane_weight_distance = 2.6 # 생성한 경로와 장애물 사이 거리 
 
         rate = rospy.Rate(30)  # 30hz
         while not rospy.is_shutdown():
             if self.is_lattice_started:
-                if self.is_path and self.is_odom and self.is_obj:
-                    if self.checkObject(self.local_path, self.object_points):
+                if self.is_path and self.is_odom and self.is_obj: 
+                    if self.checkObject(self.local_path, self.object_points) or self.head_check(): #차량 헤딩 앞 전방에 대한 
                         lattice_path = self.latticePlanner(self.local_path, self.odom_msg)
                         lattice_path_index = self.collision_check(self.object_points, lattice_path)
                         self.lattice_path_pub.publish(lattice_path[lattice_path_index])
@@ -114,11 +123,25 @@ class LatticePlanner:
             for path_num in range(len(out_path)):
                 for path_pos in out_path[path_num].poses:
                     dis = sqrt(pow(point[0] - path_pos.pose.position.x, 2) + pow(point[1] - path_pos.pose.position.y, 2))
-                    if dis < self.lane_weight_distance:  # 1.5보다 크게 설정을 하게 되면 장애물과의 거리가 더 큰 경로를 선택할 수 있게
+                    
+                    if 2.2 < dis < 2.5 :
+                        self.lane_weight[path_num] += 50
+                    elif  1.9 < dis < 2.2:
                         self.lane_weight[path_num] += 100
-
+                    elif  1.7 < dis < 1.9:
+                        self.lane_weight[path_num] += 200
+                    elif  1.5 < dis < 1.7:
+                        self.lane_weight[path_num] += 300
+                    elif  1.3 < dis < 1.5:
+                        self.lane_weight[path_num] += 400
+                    elif  dis < 1.3:
+                        self.lane_weight[path_num] += 500
+                    else: 
+                        self.lane_weight[path_num] -= 10
+        
         selected_lane = self.lane_weight.index(min(self.lane_weight))
         return selected_lane
+
 
     def path_callback(self, msg):
         self.is_path = True
@@ -146,6 +169,35 @@ class LatticePlanner:
         rospy.loginfo(f"Received and stored {len(self.object_points)} obstacle points. is_obj = True")
         if len(self.object_points) > 0:
             rospy.loginfo(f"First obstacle point (absolute): x={self.object_points[0][0]}, y={self.object_points[0][1]}, z={self.object_points[0][2]}")
+    def head_check(self):
+        """
+        차량 헤딩 방향으로 5미터 앞의 장애물 존재 여부를 확인합니다.
+        차량 앞 5미터 지점의 반경 3미터 내에 장애물이 있으면 True를 리턴, 없으면 False를 리턴합니다.
+        """
+        # 차량의 현재 위치와 헤딩 정보를 가져옵니다.
+        ego_x = self.odom_msg.pose.pose.position.x
+        ego_y = self.odom_msg.pose.pose.position.y
+        ego_z = self.odom_msg.pose.pose.position.z
+
+        # 오리엔테이션에서 헤딩 방향을 계산
+        orientation = self.odom_msg.pose.pose.orientation
+        heading = atan2(2.0 * (orientation.w * orientation.z + orientation.x * orientation.y),
+                        1.0 - 2.0 * (orientation.y**2 + orientation.z**2))
+
+        # 차량 헤딩 방향으로 5미터 앞의 좌표 계산
+        front_x1 = ego_x + 7.0 * cos(heading)
+        front_y1 = ego_y + 7.0 * sin(heading)
+        front_x2 = ego_x + 3.5 * cos(heading)
+        front_y2 = ego_y + 3.5 * sin(heading)
+        # 5미터 앞의 반경 4미터 내에 장애물이 있는지 확인
+        for point in self.object_points:
+            dis1 = sqrt(pow(front_x1 - point[0], 2) + pow(front_y1 - point[1], 2))
+            dis2 = sqrt(pow(front_x2 - point[0], 2) + pow(front_y2 - point[1], 2))
+            if dis1 < 4.0 or dis2 < 4.0:
+                rospy.loginfo(f"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@True")
+                return True
+        
+        return False
 
     def relative_to_absolute(self, rel_x, rel_y, rel_z):
         """
@@ -219,7 +271,7 @@ class LatticePlanner:
             lattice_path.header.frame_id = 'map'
             x = []
             y = []
-            x_interval = 0.5
+            x_interval = 0.2
             xs = 0
             xf = end_point[0]
             ps = local_ego_vehicle_position[1][0]
@@ -232,8 +284,8 @@ class LatticePlanner:
             a = [0.0, 0.0, 0.0, 0.0]
             a[0] = ps
             a[1] = 0
-            a[2] = 3.0 * (pf - ps) / (xf * xf)
-            a[3] = -2.0 * (pf - ps) / (xf * xf * xf)
+            a[2] = 3 * (pf - ps) / (xf * xf)
+            a[3] = -2 * (pf - ps) / (xf * xf * xf)
 
             for i in x:
                 result = a[3] * i * i * i + a[2] * i * i + a[1] * i + a[0]

@@ -9,5 +9,5 @@
     <node pkg="kurrier" type="slamOnOff.py" name="slamOnOff"/>
     <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch"/>
     <node pkg="kurrier" type="velodyne_cluster.py" name="velodyne_cluster"/>
-    <node pkg="kurrier" type="ransac.py" name="ransac"/>
+    <node pkg="imu_modifier" type="slam_planning.py" name="grid_map"/>
 </launch>
