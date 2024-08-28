@@ -7,7 +7,9 @@ from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry, Path
 from morai_msgs.msg import CtrlCmd, EventInfo
 from std_msgs.msg import Int16, Bool
+from sensor_msgs.msg import PointCloud2
 import numpy as np
+import sensor_msgs.point_cloud2 as pc2
 from tf.transformations import euler_from_quaternion
 from kurrier.msg import mission, obstacle   # 사용자 정의 메시지 임포트 
 from morai_msgs.srv import MoraiEventCmdSrv
@@ -53,14 +55,13 @@ class pure_pursuit:
         self.is_finish = False
         self.is_stopped = False
         self.M7_complete = False
-        
+
         #self.find_parking_zone = False
         self.parking_complete = False
 
         self.mission4_forward = True
         self.mission4_reverse = False
         self.find_parking_zone = True
-
 
         self.candidate_parking_zone = [ # 주차 공간 후보
             (-60.0301, 106.8783),
@@ -93,7 +94,7 @@ class pure_pursuit:
             (1.98631, 106.9997),
             (4.29672, 106.9429)
         ]
-
+        
         # 기어 변경 서비스 설정
         rospy.loginfo("connecting service")
         rospy.wait_for_service('/Service_MoraiEventCmd', timeout=5)
@@ -134,7 +135,7 @@ class pure_pursuit:
 
                 theta = atan2(local_path_point[1], local_path_point[0])
                 default_vel = 10
-                default_vel_m1m51 = 15
+
                 if self.is_look_forward_point:
                     if self.mission_info.mission_num == 4:
                         #############################
@@ -167,9 +168,10 @@ class pure_pursuit:
                         else:
                             self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)
                             normalized_steer = abs(self.ctrl_cmd_msg.steering) / 0.6981
-                            self.ctrl_cmd_msg.velocity = default_vel                    
+                            self.ctrl_cmd_msg.velocity = default_vel
+
                     else:
-                        # steering
+                        # 주차 모드가 아닌 경우 주행 명령 발행
                         self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)
                         normalized_steer = abs(self.ctrl_cmd_msg.steering) / 0.6981
 
@@ -222,9 +224,6 @@ class pure_pursuit:
                             else:
                                 self.ctrl_cmd_msg.velocity = default_vel
                                 self.is_stopped = False
-
-                        elif self.mission_info.mission_num == 1 or  self.mission_info.mission_num == 51:
-                            self.ctrl_cmd_msg.velocity = default_vel_m1m51 * (1.0 - (self.obstacle.collision_probability / 100)) * (1 - 0.6 * normalized_steer)
                         else:
                             self.ctrl_cmd_msg.velocity = default_vel
 
@@ -237,62 +236,6 @@ class pure_pursuit:
 
             self.is_path = self.is_odom = False
             rate.sleep()
-
-    def path_callback(self, msg):
-        self.is_path = True
-        self.path = msg
-
-    def yolo_callback(self, msg):
-        self.is_yolo = True
-        self.obstacle = msg
-
-    def mission_callback(self, msg):
-        self.mission_info = msg
-
-    def odom_callback(self, msg):
-        self.is_odom = True
-        odom_quaternion = (msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w)
-        _, _, self.vehicle_yaw = euler_from_quaternion(odom_quaternion)
-        self.current_postion.x = msg.pose.pose.position.x
-        self.current_postion.y = msg.pose.pose.position.y
-
-    def traffic_callback(self, msg):
-        self.traffic_color = msg.data
-
-    def finish_callback(self, msg):
-        self.is_finish = msg.data
-
-    def send_gear_cmd(self, gear_mode):
-        try:
-            gear_cmd = EventInfo()
-            gear_cmd.option = 3
-            gear_cmd.ctrl_mode = 3
-            gear_cmd.gear = gear_mode
-
-            response = self.event_cmd_srv(gear_cmd)
-
-            if response:
-                rospy.loginfo(f"Gear successfully changed to {gear_mode}")
-                rospy.sleep(1)  # 기어 변경 후 안정화 시간 추가
-                return True
-            else:
-                rospy.logerr(f"Failed to change gear to {gear_mode}")
-                return False
-        except rospy.ServiceException as e:
-            rospy.logerr(f"Service call failed: {e}")
-            return False
-
-    def stop_vehicle(self):
-        self.ctrl_cmd_msg.velocity = 0.0
-        self.ctrl_cmd_msg.steering = 0.0  # 조향 각도를 0으로 설정
-        self.ctrl_cmd_msg.brake = 1.0  # 최대 제동력
-        self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
-        rospy.sleep(5)
-        rospy.loginfo("Vehicle stopped")
-        self.is_stopped = True
-        self.stop_pub.publish(self.is_stopped)
-        rospy.sleep(5)
-        self.ctrl_cmd_msg.brake = 0
 
     def parking_mode(self):
         rospy.loginfo("Starting parking maneuver")
@@ -350,6 +293,51 @@ class pure_pursuit:
 
         self.mission4_reverse = False
 
+
+    def path_callback(self, msg):
+        self.is_path = True
+        self.path = msg
+
+    def yolo_callback(self, msg):
+        self.is_yolo = True
+        self.obstacle = msg
+
+    def mission_callback(self, msg):
+        self.mission_info = msg
+
+    def odom_callback(self, msg):
+        self.is_odom = True
+        odom_quaternion = (msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w)
+        _, _, self.vehicle_yaw = euler_from_quaternion(odom_quaternion)
+        self.current_postion.x = msg.pose.pose.position.x
+        self.current_postion.y = msg.pose.pose.position.y
+
+    def traffic_callback(self, msg):
+        self.traffic_color = msg.data
+
+    def finish_callback(self, msg):
+        self.is_finish = msg.data
+
+    def send_gear_cmd(self, gear_mode):
+        try:
+            gear_cmd = EventInfo()
+            gear_cmd.option = 3
+            gear_cmd.ctrl_mode = 3
+            gear_cmd.gear = gear_mode
+
+            response = self.event_cmd_srv(gear_cmd)
+
+            if response:
+                rospy.loginfo(f"Gear successfully changed to {gear_mode}")
+                rospy.sleep(1)  # 기어 변경 후 안정화 시간 추가
+                return True
+            else:
+                rospy.logerr(f"Failed to change gear to {gear_mode}")
+                return False
+        except rospy.ServiceException as e:
+            rospy.logerr(f"Service call failed: {e}")
+            return False
+
     def set_velocity_and_steering(self, velocity, steering_angle_deg, duration):
         """
         속도와 조향 각도를 설정하고 일정 시간 동안 명령을 발행
@@ -364,6 +352,20 @@ class pure_pursuit:
             rate.sleep()
 
         rospy.loginfo(f"Completed velocity {velocity} and steering {steering_angle_deg} degrees for {duration} seconds")
+
+    def stop_vehicle(self):
+        """
+        차량을 완전히 정지시키기 위해 속도를 0으로 설정하고 조향 각도를 0으로 설정, 브레이크를 적용
+        """
+        self.ctrl_cmd_msg.velocity = 0.0
+        self.ctrl_cmd_msg.steering = 0.0  # 조향 각도를 0으로 설정
+        self.ctrl_cmd_msg.brake = 1.0  # 최대 제동력
+        self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
+        rospy.loginfo("Vehicle stopped")
+        self.is_stopped = True
+        self.stop_pub.publish(self.is_stopped)
+        rospy.sleep(5)
+        self.ctrl_cmd_msg.brake = 0
 
 if __name__ == '__main__':
     try:

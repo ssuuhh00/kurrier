@@ -8,13 +8,17 @@ from sensor_msgs.msg import PointCloud2, PointField
 from std_msgs.msg import Header
 import sensor_msgs.point_cloud2 as pc2
 from sklearn.cluster import DBSCAN
+from kurrier.msg import mission  # 사용자 정의 메시지 임포트
 
 class SCANCluster:
     def __init__(self):
         rospy.init_node('velodyne_clustering', anonymous=True)
         self.scan_sub = rospy.Subscriber("/velodyne_points", PointCloud2, self.callback)
+        rospy.Subscriber("/mission", mission, self.mission_callback)
+
         self.clusterpoints_pub = rospy.Publisher("/cluster_points", PointCloud2, queue_size=10)
         self.pc_np = None
+        self.mission_info = mission()
 
     def callback(self, msg):
         self.pc_np = self.pointcloud2_to_xyz(msg)
@@ -42,16 +46,27 @@ class SCANCluster:
 
         self.publish_point_cloud(cluster_points)
 
+    def mission_callback(self, msg):
+        self.mission_info = msg
+
     def get_dbscan_params_by_distance(self):
         """
         거리 범위에 따라 DBSCAN의 eps와 min_samples 파라미터를 설정합니다.
         """
-        return {
-            (0, 5): {'eps': 0.1, 'min_samples': 20},  # 0m ~ 5m 거리
-            (5, 10): {'eps': 0.2, 'min_samples': 15},  # 5m ~ 10m 거리
-            (10, 15): {'eps': 0.3, 'min_samples': 10},  # 10m ~ 15m 거리
-            # 필요에 따라 더 많은 거리 범위를 추가할 수 있습니다.
-        }
+        if self.mission_info.mission_num == 4:
+            return {
+                (0, 5): {'eps': 0.3, 'min_samples': 30},  # 0m ~ 5m 거리
+                # (5, 10): {'eps': 0.2, 'min_samples': 15},  # 5m ~ 10m 거리
+                # (10, 15): {'eps': 0.3, 'min_samples': 10},  # 10m ~ 15m 거리
+                # # 필요에 따라 더 많은 거리 범위를 추가할 수 있습니다.
+            }
+        else:
+            return {
+                (0, 5): {'eps': 0.3, 'min_samples': 30},  # 0m ~ 5m 거리
+                (5, 10): {'eps': 0.2, 'min_samples': 15},  # 5m ~ 10m 거리
+                (10, 15): {'eps': 0.3, 'min_samples': 10},  # 10m ~ 15m 거리
+                # 필요에 따라 더 많은 거리 범위를 추가할 수 있습니다.
+            }
 
     def publish_point_cloud(self, points):
         header = Header()
@@ -76,8 +91,12 @@ class SCANCluster:
             dist = np.sqrt(point[0]**2 + point[1]**2 + point[2]**2)
             angle = np.arctan2(point[1], point[0])
             # point[0] = x / point[1] = y / point[2] = z
-            if point[0] > 0 and -5 < point[1] < 5 and (dist < 15) and (-1.4 < point[2] < 0):
-                point_list.append((point[0], point[1], point[2], point[3], dist, angle))
+            if self.mission_info.mission_num == 4:
+                if point[0] > 0 and -5 < point[1] < 5 and (dist < 15) and (-1.4 < point[2] < 0):
+                    point_list.append((point[0], point[1], point[2], point[3], dist, angle))
+            else:
+                if point[0] > -1 and -5 < point[1] < 5 and (dist < 15) and (-1.3 < point[2] < 0.1):
+                    point_list.append((point[0], point[1], point[2], point[3], dist, angle))
 
         point_np = np.array(point_list, np.float32)
         return point_np
