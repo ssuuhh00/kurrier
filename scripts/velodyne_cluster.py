@@ -7,7 +7,6 @@ import numpy as np
 from sensor_msgs.msg import PointCloud2, PointField
 from std_msgs.msg import Header
 import sensor_msgs.point_cloud2 as pc2
-from geometry_msgs.msg import PoseArray, Pose
 from sklearn.cluster import DBSCAN
 
 class SCANCluster:
@@ -27,19 +26,19 @@ class SCANCluster:
         for dist_range, params in self.get_dbscan_params_by_distance().items():
             # 해당 거리 범위의 포인트 필터링
             mask = (self.pc_np[:, 4] >= dist_range[0]) & (self.pc_np[:, 4] < dist_range[1])
-            pc_xy = self.pc_np[mask, :2]
+            pc_xyz = self.pc_np[mask, :3]  # x, y, z 좌표 모두 포함
 
-            if len(pc_xy) == 0:
+            if len(pc_xyz) == 0:
                 continue
 
             # DBSCAN 적용
             dbscan = DBSCAN(eps=params['eps'], min_samples=params['min_samples'])
-            db = dbscan.fit_predict(pc_xy)
+            db = dbscan.fit_predict(pc_xyz)
             n_cluster = np.max(db) + 1
 
             for c in range(n_cluster):
-                c_tmp = np.mean(pc_xy[db == c, :], axis=0)
-                cluster_points.append([c_tmp[0], c_tmp[1], 1])  # Z 좌표는 1로 고정
+                c_tmp = np.mean(pc_xyz[db == c, :], axis=0)
+                cluster_points.append([c_tmp[0], c_tmp[1], c_tmp[2]])  # Z 좌표 포함
 
         self.publish_point_cloud(cluster_points)
 
@@ -77,7 +76,7 @@ class SCANCluster:
             dist = np.sqrt(point[0]**2 + point[1]**2 + point[2]**2)
             angle = np.arctan2(point[1], point[0])
             # point[0] = x / point[1] = y / point[2] = z
-            if point[0] > 0 and -5 < point[1] < 5 and (dist < 15) and (-1.33 < point[2] < 1):
+            if point[0] > 0 and -5 < point[1] < 5 and (dist < 15) and (-1.4 < point[2] < 0):
                 point_list.append((point[0], point[1], point[2], point[3], dist, angle))
 
         point_np = np.array(point_list, np.float32)

@@ -94,7 +94,7 @@ class pure_pursuit:
 
                 theta = atan2(local_path_point[1], local_path_point[0])
                 default_vel = 10
-
+                default_vel_m1m51 = 15
                 if self.is_look_forward_point:
                     
                     # steering
@@ -150,8 +150,11 @@ class pure_pursuit:
                         else:
                             self.ctrl_cmd_msg.velocity = default_vel
                             self.is_stopped = False
+
+                    elif self.mission_info.mission_num == 1 or  self.mission_info.mission_num == 51:
+                        self.ctrl_cmd_msg.velocity = default_vel_m1m51 * (1.0 - (self.obstacle.collision_probability / 100)) * (1 - 0.6 * normalized_steer)
                     else:
-                        self.ctrl_cmd_msg.velocity = default_vel #* (1.0 - (self.obstacle.collision_probability / 100)) * (1 - 0.6 * normalized_steer)
+                        self.ctrl_cmd_msg.velocity = default_vel
 
                 else:
                     rospy.loginfo_once("No forward point found")

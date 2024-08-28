@@ -31,27 +31,18 @@ class LatticePlanner:
         self.is_odom=False
 
 
-        self.index = 20  # 경로 생성 끝점
-
-        # 인덱스에 비례하여 좌우로 커지도록 lane_off_set 설정
-        base_offset = 1.5 * 0.3 * self.index  # 인덱스 1당 30cm의 증가율 적용
-
         self.lane_weight = [5, 4, 3, 2, 2, 3, 4, 5]
 
-        # 균등하게 나누는 값 설정 (4개의 중간 경로를 기준으로 나눔)
-        offset_steps = 7  # 8개의 경로에서 7개의 간격
-        step_size = base_offset * 2 / offset_steps  # 좌우 전체 2배를 나눈 간격
+        self.index = 20  # 경로 생성 끝점
 
-        self.lane_off_set = [
-            -base_offset,  # 좌측 끝
-            -base_offset + step_size * 6,
-            -base_offset + step_size * 5,
-            -base_offset + step_size * 4,
-            base_offset - step_size * 4,
-            base_offset - step_size * 5,
-            base_offset - step_size * 6,
-            base_offset,  # 우측 끝
-        ]
+        # lane_off_set 설정
+        num_paths = 8  # 생성할 경로의 개수
+        half_offset = 10 # 최대 오프셋 값 (좌우로 얼마나 떨어져 있는지)
+        max_offset = half_offset*2
+
+        # 각 경로의 오프셋 범위 계산
+        self.lane_off_set = [-(max_offset - (max_offset * i / (num_paths - 1))) for i in range(num_paths // 2)] + \
+                    [(max_offset - (max_offset * i / (num_paths - 1))) for i in range(num_paths // 2)]
 
         self.checkObject_dis = 3 # 장애물의 좌표값이 지역 경로 상의 좌표값과의 직선거리가 2.35 미만일 때 충돌이라 판단
         self.lane_weight_distance = 3 # 생성한 경로와 장애물 사이 거리 
