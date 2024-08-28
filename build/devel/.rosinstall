@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/lsh/catkin_ws/src/kurrier/build/devel/setup.sh

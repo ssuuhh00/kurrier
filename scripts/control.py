@@ -151,7 +151,7 @@ class pure_pursuit:
                             self.ctrl_cmd_msg.velocity = default_vel
                             self.is_stopped = False
                     else:
-                        self.ctrl_cmd_msg.velocity = default_vel * (1.0 - (self.obstacle.collision_probability / 100)) * (1 - 0.6 * normalized_steer)
+                        self.ctrl_cmd_msg.velocity = default_vel #* (1.0 - (self.obstacle.collision_probability / 100)) * (1 - 0.6 * normalized_steer)
 
                 else:
                     rospy.loginfo_once("No forward point found")

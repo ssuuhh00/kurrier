@@ -30,6 +30,32 @@ class LatticePlanner:
         self.local_path = None
         self.is_odom=False
 
+
+        self.index = 20  # 경로 생성 끝점
+
+        # 인덱스에 비례하여 좌우로 커지도록 lane_off_set 설정
+        base_offset = 1.5 * 0.3 * self.index  # 인덱스 1당 30cm의 증가율 적용
+
+        self.lane_weight = [5, 4, 3, 2, 2, 3, 4, 5]
+
+        # 균등하게 나누는 값 설정 (4개의 중간 경로를 기준으로 나눔)
+        offset_steps = 7  # 8개의 경로에서 7개의 간격
+        step_size = base_offset * 2 / offset_steps  # 좌우 전체 2배를 나눈 간격
+
+        self.lane_off_set = [
+            -base_offset,  # 좌측 끝
+            -base_offset + step_size * 6,
+            -base_offset + step_size * 5,
+            -base_offset + step_size * 4,
+            base_offset - step_size * 4,
+            base_offset - step_size * 5,
+            base_offset - step_size * 6,
+            base_offset,  # 우측 끝
+        ]
+
+        self.checkObject_dis = 3 # 장애물의 좌표값이 지역 경로 상의 좌표값과의 직선거리가 2.35 미만일 때 충돌이라 판단
+        self.lane_weight_distance = 3 # 생성한 경로와 장애물 사이 거리 
+
         rate = rospy.Rate(30)  # 30hz
         while not rospy.is_shutdown():
             if self.is_lattice_started:
@@ -57,32 +83,32 @@ class LatticePlanner:
         elif msg.mission_num != 2 and self.is_lattice_started:
             self.is_lattice_started = False
         
-        # # GPS 음영 미션 시작
-        # elif msg.mission_num == 3 and not self.is_1st_slam_started:
-        #     self.is_lattice_started = True
-        #     self.is_1st_slam_started = True
+        # GPS 음영 미션 시작
+        elif msg.mission_num == 3 and not self.is_1st_slam_started:
+            self.is_lattice_started = True
+            self.is_1st_slam_started = True
 
-        # # gps음영 미션 끝
-        # elif msg.mission_num != 3 and self.is_1st_slam_started:
-        #     self.is_lattice_started = False
-        #     self.is_1st_slam_started = False        
+        # gps음영 미션 끝
+        elif msg.mission_num != 3 and self.is_1st_slam_started:
+            self.is_lattice_started = False
+            self.is_1st_slam_started = False        
             
-        # # GPS 음영 미션 시작
-        # elif msg.mission_num == 6 and not self.is_2nd_slam_started:
-        #     self.is_lattice_started = True
-        #     self.is_2nd_slam_started = True
+        # GPS 음영 미션 시작
+        elif msg.mission_num == 6 and not self.is_2nd_slam_started:
+            self.is_lattice_started = True
+            self.is_2nd_slam_started = True
 
-        # # gps음영 미션 끝
-        # elif msg.mission_num != 6 and self.is_2nd_slam_started:
-        #     self.is_lattice_started = False
-        #     self.is_2nd_slam_started = False
+        # gps음영 미션 끝
+        elif msg.mission_num != 6 and self.is_2nd_slam_started:
+            self.is_lattice_started = False
+            self.is_2nd_slam_started = False
 
     def checkObject(self, ref_path, object_points):
         is_crash = False
         for point in object_points:
             for path in ref_path.poses:
                 dis = sqrt(pow(path.pose.position.x - point[0], 2) + pow(path.pose.position.y - point[1], 2))
-                if dis < 2.3:  # 장애물의 좌표값이 지역 경로 상의 좌표값과의 직선거리가 2.35 미만일 때 충돌이라 판단
+                if dis < self.checkObject_dis:  # 장애물의 좌표값이 지역 경로 상의 좌표값과의 직선거리가 2.35 미만일 때 충돌이라 판단
                     # dis < 2.35 에서 2.35보다 크게 설정하면 경로와 장애물 사이의 거리를 더 멀게 설정
                     is_crash = True
                     break
@@ -91,16 +117,16 @@ class LatticePlanner:
     def collision_check(self, object_points, out_path):
         selected_lane = -1
         
-        lane_weight = [1, 1, 1, 1, 1, 1]  # 원본
+        # lane_weight = [1, 1, 1, 1, 1, 1]  # 원본
 
         for point in object_points:
             for path_num in range(len(out_path)):
                 for path_pos in out_path[path_num].poses:
                     dis = sqrt(pow(point[0] - path_pos.pose.position.x, 2) + pow(point[1] - path_pos.pose.position.y, 2))
-                    if dis < 1.7:  # 1.5보다 크게 설정을 하게 되면 장애물과의 거리가 더 큰 경로를 선택할 수 있게
-                        lane_weight[path_num] += 100
+                    if dis < self.lane_weight_distance:  # 1.5보다 크게 설정을 하게 되면 장애물과의 거리가 더 큰 경로를 선택할 수 있게
+                        self.lane_weight[path_num] += 100
 
-        selected_lane = lane_weight.index(min(lane_weight))
+        selected_lane = self.lane_weight.index(min(self.lane_weight))
         return selected_lane
 
     def path_callback(self, msg):
@@ -155,8 +181,8 @@ class LatticePlanner:
     def latticePlanner(self, ref_path, vehicle_status):
         out_path = []
 
-        vehicle_velocity = max(vehicle_status.twist.twist.linear.x * 3.6, 20)  # 정지 시에도 기본 속도(20)를 사용하여 look_distance 계산
-        look_distance = int(vehicle_velocity * 0.2 * 2)
+        # vehicle_velocity = max(vehicle_status.twist.twist.linear.x * 3.6, 20)  # 정지 시에도 기본 속도(20)를 사용하여 look_distance 계산
+        # look_distance = int(vehicle_velocity * 0.2 * 2)
 
         # 오리엔테이션에서 헤딩 방향을 계산
         orientation = vehicle_status.pose.pose.orientation
@@ -165,8 +191,15 @@ class LatticePlanner:
 
         # 시작점과 끝점을 차량의 현재 위치 기준으로 정함
         start_pos = {'x': vehicle_status.pose.pose.position.x, 'y': vehicle_status.pose.pose.position.y}
-        end_pos = {'x': vehicle_status.pose.pose.position.x + look_distance * cos(heading),
-                   'y': vehicle_status.pose.pose.position.y + look_distance * sin(heading)}
+
+        # self.local_path의 마지막 점을 end_pos에 저장하는 코드
+        if self.local_path and len(self.local_path.poses) > 0:
+            last_pose = self.local_path.poses[self.index]
+            end_pos = {'x': last_pose.pose.position.x, 'y': last_pose.pose.position.y}
+            rospy.loginfo(f"End position set to x: {end_pos['x']}, y: {end_pos['y']}")
+        else:
+            rospy.logwarn("local_path is empty or not set.")
+            end_pos = None
 
         theta = atan2(end_pos['y'] - start_pos['y'], end_pos['x'] - start_pos['x'])
         translation = [start_pos['x'], start_pos['y']]
@@ -183,12 +216,12 @@ class LatticePlanner:
         local_end_point = det_trans_matrix.dot(world_end_point)
         world_ego_vehicle_position = np.array([[vehicle_status.pose.pose.position.x], [vehicle_status.pose.pose.position.y], [1]])
         local_ego_vehicle_position = det_trans_matrix.dot(world_ego_vehicle_position)
-        lane_off_set = [-1.6, -1.2, -1.0, 1.0, 1.2, 1.6]
+        # lane_off_set = [-2.0, -1.5, -1.0, 1.0, 1.5, 2.0]
 
         local_lattice_points = []
 
-        for i in range(len(lane_off_set)):
-            local_lattice_points.append([local_end_point[0][0], local_end_point[1][0] + lane_off_set[i], 1])
+        for i in range(len(self.lane_off_set)):
+            local_lattice_points.append([local_end_point[0][0], local_end_point[1][0] + self.lane_off_set[i], 1])
 
         for end_point in local_lattice_points:
             lattice_path = Path()

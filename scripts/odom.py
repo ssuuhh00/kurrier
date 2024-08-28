@@ -21,6 +21,7 @@ class TFNode:
         rospy.Subscriber("/is_stop", Bool, self.stop_callback)
 
         self.odom_pub = rospy.Publisher('/odom',Odometry, queue_size=1)
+        self.odom_start_pub = rospy.Publisher('/odom_slam_start',Odometry, queue_size=1)
 
         # 초기화
         self.x, self.y = None, None
@@ -59,6 +60,7 @@ class TFNode:
                     self.odom_msg.pose.pose.position.y = self.start_position.pose.pose.position.y + sin(self.initial_yaw) * x1 + cos(self.initial_yaw) * y1
                     self.odom_msg.pose.pose.position.z = self.start_position.pose.pose.position.z
                     self.odom_pub.publish(self.odom_msg)
+                    self.odom_start_pub.publish(self.start_position)
                 else: 
                     rospy.loginfo("start_position or initial_yaw is None")
                 self.is_slam_odom = False
@@ -128,7 +130,8 @@ class TFNode:
                 self.start_position.pose.pose.position.x = self.odom_msg.pose.pose.position.x
                 self.start_position.pose.pose.position.y = self.odom_msg.pose.pose.position.y
                 self.start_position.pose.pose.position.z = self.odom_msg.pose.pose.position.z
-
+                self.start_position.pose.pose.orientation.w = self.odom_msg.pose.pose.orientation.w
+                
                 self.initial_yaw = self.get_yaw()
 
                 # 시작 위치와 yaw 값 로깅
