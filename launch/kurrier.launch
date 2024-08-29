@@ -9,7 +9,7 @@
     <node pkg="kurrier" type="lattice_planner.py" name="lattice_planner"/> 
     <node pkg="kurrier" type="control.py" name="control" output="screen"/>
     <include file="$(find velodyne_pointcloud)/launch/VLP16_points.launch">
-        <!-- <arg name="frame_id" value="base_link"/>
-    </include> -->
+        <arg name="frame_id" value="base_link"/>
+    </include>
     <node pkg="kurrier" type="velodyne_cluster.py" name="velodyne_cluster"/>
 </launch>
