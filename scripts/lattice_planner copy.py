@@ -9,31 +9,25 @@ from nav_msgs.msg import Path, Odometry
 import numpy as np
 import sensor_msgs.point_cloud2 as pc2
 from kurrier.msg import mission  # 사용자 정의 메시지 임포트
-from geometry_msgs.msg import Quaternion
-import tf
-
 
 class LatticePlanner:
     def __init__(self):
         rospy.init_node('lattice_planner', anonymous=True)
 
         # Subscriber, Publisher 선언
-        # rospy.Subscriber("/local_path", Path, self.path_callback)
+        rospy.Subscriber("/local_path", Path, self.path_callback)
         rospy.Subscriber("/odom", Odometry, self.odom_callback)
         rospy.Subscriber("/cluster_points", PointCloud2, self.object_callback)
         rospy.Subscriber("/mission", mission, self.mission_callback)
 
         self.lattice_path_pub = rospy.Publisher('/lattice_path', Path, queue_size=1)
-        self.local_path_pub = rospy.Publisher('/local_path', Path, queue_size=1)
 
         self.is_path = False
         self.is_obj = False
-        self.is_1st_lattice_started = False
-        self.is_2nd_lattice_started = False
+        self.is_lattice_started = False
         self.is_1st_slam_started = False
         self.is_2nd_slam_started = False
         self.local_path = None
-        self.lattice_path = None
         self.is_odom=False
 
 
@@ -63,48 +57,44 @@ class LatticePlanner:
         rate = rospy.Rate(30)  # 30hz
 
         while not rospy.is_shutdown():
-            if self.is_odom:
-                self.local_path = self.generate_local_path(self.odom_msg)
-                self.local_path_pub.publish(self.local_path)
-                if self.is_1st_lattice_started or self.is_2nd_lattice_started:
-                    # if self.is_path and self.is_odom and self.is_obj: #콜백 함수들 돌아가고 있으면
-                    if self.is_odom and self.is_obj:
-                        if self.checkObject(self.local_path, self.object_points):
+            if self.is_lattice_started:
+                if self.is_path and self.is_odom and self.is_obj: #콜백 함수들 돌아가고 있으면
+                    if self.checkObject(self.local_path, self.object_points):
+                        lattice_path = self.latticePlanner(self.local_path, self.odom_msg)
+                        lattice_path_index = self.collision_check(self.object_points, lattice_path)
+                        self.lattice_path_pub.publish(lattice_path[lattice_path_index])
+                    else:
+                        if self.head_check():
+                            self.lattice_path_pub.publish(self.local_path)
+                        else:
                             lattice_path = self.latticePlanner(self.local_path, self.odom_msg)
                             lattice_path_index = self.collision_check(self.object_points, lattice_path)
                             self.lattice_path_pub.publish(lattice_path[lattice_path_index])
-                        else:
-                            # if self.head_check():
-                                # self.lattice_path_pub.publish(self.local_path)
-                                self.local_path_pub.publish(self.local_path)
-                            # else:
-                            #     lattice_path = self.latticePlanner(self.local_path, self.odom_msg)
-                            #     lattice_path_index = self.collision_check(self.object_points, lattice_path)
-                            #     self.lattice_path_pub.publish(lattice_path[lattice_path_index])
-                    # else:
-                    #     rospy.logwarn("Not enough information to compute lattice path.")
-                    #     self.lattice_path_pub.publish(self.local_path)
                 else:
-                    if self.local_path is not None:
-                        # self.lattice_path_pub.publish(self.local_path)
-                        self.local_path_pub.publish(self.local_path)
-                rate.sleep()
+                    rospy.logwarn("Not enough information to compute lattice path.")
+                    self.lattice_path_pub.publish(self.local_path)
+            else:
+                if self.local_path is not None:
+                    self.lattice_path_pub.publish(self.local_path)
+            rate.sleep()
 
     def mission_callback(self, msg):
         # 정적장애물 미션 시작
-        if msg.mission_num == 2 and not self.is_1st_lattice_started:
-            self.is_1st_lattice_started = True
+        if msg.mission_num == 2 and not self.is_lattice_started:
+            self.is_lattice_started = True
         # 정적장애물 미션 끝
-        elif msg.mission_num != 2 and self.is_1st_lattice_started:
-            self.is_1st_lattice_started = False
+        elif msg.mission_num != 2 and self.is_lattice_started:
+            self.is_lattice_started = False
         
-        # GPS 음영 미션 시작
-        elif msg.mission_num == 3 and not self.is_2nd_lattice_started:
-            self.is_2nd_lattice_started = True
+        # # GPS 음영 미션 시작
+        # elif msg.mission_num == 31 and not self.is_1st_slam_started:
+        #     self.is_lattice_started = True
+        #     self.is_1st_slam_started = True
 
-        # gps음영 미션 끝
-        elif msg.mission_num != 3 and self.is_2nd_lattice_started:
-            self.is_2nd_lattice_started = False
+        # # gps음영 미션 끝
+        # elif msg.mission_num != 31 and self.is_1st_slam_started:
+        #     self.is_lattice_started = False
+        #     self.is_1st_slam_started = False
 
     def checkObject(self, ref_path, object_points):
         is_crash = False
@@ -152,6 +142,7 @@ class LatticePlanner:
             rospy.loginfo(f"Lane {i} weight: {weight}")        
         selected_lane = self.lane_weight.index(min(self.lane_weight))
         return selected_lane
+
 
     def path_callback(self, msg):
         self.is_path = True
@@ -227,6 +218,7 @@ class LatticePlanner:
 
         #rospy.loginfo(f"Converted relative position ({rel_x}, {rel_y}, {rel_z}) to absolute position ({abs_x}, {abs_y}, {abs_z}) with heading {heading}")
         return abs_x, abs_y, abs_z
+
 
     def latticePlanner(self, ref_path, vehicle_status):
         out_path = []
@@ -316,41 +308,6 @@ class LatticePlanner:
             out_path.append(lattice_path)
                        
         return out_path
-
-    def generate_local_path(self, vehicle_status):
-        """
-        Generates a local path starting from (0, 0, 0) and extending straight along the x-axis.
-        The path extends for 20 points with 0.3 meters between each point.
-        """
-        path = Path()
-        path.header.frame_id = 'map'
-
-        # The number of points (steps) in the path
-        num_points = 20
-
-        # Interval between points in meters
-        interval = 0.3
-
-        # Generate points along the x-axis
-        for i in range(num_points):
-            x = i * interval
-            y = 0.0  # No deviation in y, so it stays on the x-axis
-            z = 0.0  # Assuming a flat 2D plane
-
-            # Create a PoseStamped for each point
-            pose = PoseStamped()
-            pose.pose.position.x = x
-            pose.pose.position.y = y
-            pose.pose.position.z = z
-
-            # Set the orientation to face straight along the x-axis
-            quaternion = tf.transformations.quaternion_from_euler(0, 0, 0)  # No rotation, aligned with x-axis
-            pose.pose.orientation = Quaternion(*quaternion)
-
-            # Add the pose to the path
-            path.poses.append(pose)
-
-        return path
 
 
 if __name__ == '__main__':

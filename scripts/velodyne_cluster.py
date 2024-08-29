@@ -89,7 +89,7 @@ class SCANCluster:
     def publish_point_cloud(self, points):
         header = Header()
         header.stamp = rospy.Time.now()
-        header.frame_id = "base_link"
+        header.frame_id = "map"
 
         fields = [
             PointField('x', 0, PointField.FLOAT32, 1),
