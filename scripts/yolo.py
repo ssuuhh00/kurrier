@@ -320,13 +320,13 @@ class YoloNode:
     
     #mission number 에 따라 다르게 동작하는 로직  
     def timer_callback(self, event): 
-        if self.mission_info.mission_num in [3,6]:#주차 및 gpsshaded에서 완전 끄기 
+        if self.mission_info.mission_num in [3,6,4]:#주차 및 gpsshaded에서 완전 끄기 
             return
         if self.latest_frame is not None:
             if self.mission_info.mission_num in [0,1,5,51]:  # 끼어들기, 차간간격
                 self.calculate_collision_probability(self.latest_frame)
             
-            elif self.mission_info.mission_num in [2,4,6,7]:  # 동적 장애물 감지
+            elif self.mission_info.mission_num in [2,6,7]:  # 동적 장애물 감지
                 self.calculate_collision_probability(self.latest_frame)
             
             elif self.mission_info.mission_num == 71:  # 신호등 탐지 미션

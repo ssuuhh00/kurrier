@@ -197,6 +197,16 @@ class pure_pursuit:
                 default_vel_m1 = 15
 
                 if (self.is_1st_slam_started):
+                    self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)
+                    normalized_steer = abs(self.ctrl_cmd_msg.steering) / 0.6981
+                    if self.mission_info.mission_num == 3:
+                        rospy.loginfo_once("Mission 3: Slam")
+                        
+                        if self.mission_info.count == 1:
+                            self.stop_vehicle_slam()
+                        else:
+                            self.ctrl_cmd_msg.velocity = default_vel * (1 - 0.6 * normalized_steer)
+                            self.is_stopped = False
                     if self.slam_check():
                         self.local_path = self.generate_local_path(self.odom_msg)
                         if self.is_obj:
@@ -222,17 +232,6 @@ class pure_pursuit:
                         self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)
                         normalized_steer = abs(self.ctrl_cmd_msg.steering) / 0.6981
                         self.ctrl_cmd_msg.velocity = default_vel * (1 - 0.7 * normalized_steer)
-                    else:
-                        self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)
-                        normalized_steer = abs(self.ctrl_cmd_msg.steering) / 0.6981
-                        if self.mission_info.mission_num == 3:
-                            rospy.loginfo_once("Mission 3: Slam")
-                            
-                            if self.mission_info.count == 1:
-                                self.stop_vehicle_slam()
-                            else:
-                                self.ctrl_cmd_msg.velocity = default_vel * (1 - 0.6 * normalized_steer)
-                                self.is_stopped = False
                 else:
                     if self.is_look_forward_point:
                         if self.mission_info.mission_num == 4:
