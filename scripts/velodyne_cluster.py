@@ -52,18 +52,18 @@ class SCANCluster:
     def mission_callback(self, msg):
         self.mission_info = msg
     
-    def apply_ransac(self, points):
-        """
-        RANSAC 알고리즘을 사용하여 평면상의 포인트들을 제거합니다.
-        """
-        X = points[:, :3]  # x, y, z 좌표
-        ransac = RANSACRegressor(residual_threshold=0.05)
-        ransac.fit(X[:, :2], X[:, 2])  # x, y를 독립 변수, z를 종속 변수로 사용
-        inlier_mask = ransac.inlier_mask_
+    # def apply_ransac(self, points):
+    #     """
+    #     RANSAC 알고리즘을 사용하여 평면상의 포인트들을 제거합니다.
+    #     """
+    #     X = points[:, :3]  # x, y, z 좌표
+    #     ransac = RANSACRegressor(residual_threshold=0.05)
+    #     ransac.fit(X[:, :2], X[:, 2])  # x, y를 독립 변수, z를 종속 변수로 사용
+    #     inlier_mask = ransac.inlier_mask_
 
-        # 인라이어(평면에 속하는 포인트들)를 제거하고 아웃라이어만 반환
-        filtered_points = points[~inlier_mask]
-        return filtered_points
+    #     # 인라이어(평면에 속하는 포인트들)를 제거하고 아웃라이어만 반환
+    #     filtered_points = points[~inlier_mask]
+    #     return filtered_points
 
     def get_dbscan_params_by_distance(self):
         """
@@ -72,19 +72,19 @@ class SCANCluster:
         if self.mission_info.mission_num == 4:
             return {
                 (0, 5): {'eps': 0.3, 'min_samples': 30},  # 0m ~ 5m 거리
-                # (5, 10): {'eps': 0.2, 'min_samples': 15},  # 5m ~ 10m 거리
-                # (10, 15): {'eps': 0.3, 'min_samples': 10},  # 10m ~ 15m 거리
-                # # 필요에 따라 더 많은 거리 범위를 추가할 수 있습니다.
+            }
+        elif self.mission_info.mission_num in [0,1,5]:
+            return {
+                (0, 6): {'eps': 0.1, 'min_samples': 30}
             }
         else:
             return {
                 (0, 5): {'eps': 0.15, 'min_samples': 30},
-                (0, 10): {'eps': 0.2, 'min_samples': 25},  # 0m ~ 1m 거리
+                (0, 10): {'eps': 0.2, 'min_samples': 25},  # 0m ~ 10m 거리
                 (10, 15): {'eps': 0.3, 'min_samples': 20},
-                (0, 20): {'eps': 0.45, 'min_samples': 15},  # 1m ~ 20m 거리
-                #(10, 15): {'eps': 0.3, 'min_samples': 10},  # 10m ~ 15m 거리
-                # 필요에 따라 더 많은 거리 범위를 추가할 수 있습니다.
+                (0, 20): {'eps': 0.45, 'min_samples': 15},  # 10m ~ 20m 거리
             }
+
 
     def publish_point_cloud(self, points):
         header = Header()
@@ -109,11 +109,15 @@ class SCANCluster:
             dist = np.sqrt(point[0]**2 + point[1]**2 + point[2]**2)
             angle = np.arctan2(point[1], point[0])
             # point[0] = x / point[1] = y / point[2] = z
-            if self.mission_info.mission_num == 4:
+            if self.mission_info.mission_num in [0,1,5]:
+                if 0< point[0] < 6 and -3 < point[1] < 3 and (dist < 6 ) and (-1.3 < point[2] < 0):
+                    point_list.append((point[0], point[1], point[2], point[3], dist, angle))
+            
+            elif self.mission_info.mission_num == 4:
                 if point[0] > 0 and -5 < point[1] < 5 and (dist < 15) and (-1.4 < point[2] < 0):
                     point_list.append((point[0], point[1], point[2], point[3], dist, angle))
             else:
-                if point[0] > -0.5 and -5 < point[1] < 5 and (1.3 < dist < 17) and (-1.33 < point[2] < 0.2):
+                if point[0] > -1 and -4 < point[1] < 4 and (1.3 < dist < 17) and (-1.33 < point[2] < 0.2):
                     point_list.append((point[0], point[1], point[2], point[3], dist, angle))
 
         point_np = np.array(point_list, np.float32)

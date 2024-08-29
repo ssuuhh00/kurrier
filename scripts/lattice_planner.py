@@ -30,25 +30,24 @@ class LatticePlanner:
         self.local_path = None
         self.is_odom=False
 
-        self.index = 16  # 경로 생성 끝점
 
-        base_offset = 1.45 * 0.3 * 20  # 인덱스 1당 30cm의 증가율 적용
+        self.index = 18  # 경로 생성 끝점
 
-        self.lane_weight = [5, 4, 3, 2, 1, 1, 2, 3, 4,5]
+        base_offset = 1.5 * 0.3 * 20  # 인덱스 1당 30cm의 증가율 적용
 
-        offset_steps = 19
+        self.lane_weight = [ 4, 3, 2, 1, 1, 2, 3,4 ]
+
+        offset_steps = 10
         step_size = base_offset * 2 / offset_steps
 
         self.lane_off_set = [
             -1*base_offset,
-            -1*base_offset + step_size * 1.25,
-            -1*base_offset + step_size * 3,
-            -1*base_offset + step_size * 5,
-            -1*base_offset + step_size * 7,
-            base_offset - (step_size * 7),
-            base_offset - (step_size * 5),
-            base_offset - (step_size * 3),
-            base_offset - (step_size * 1.25),
+            -1*base_offset + step_size * 1.5,
+            -1*base_offset + step_size * 2.75,
+            -1*base_offset + step_size * 4,
+            base_offset - (step_size * 4),
+            base_offset - (step_size * 2.75),
+            base_offset - (step_size * 1.5),
             base_offset,
         ]
 
@@ -57,50 +56,20 @@ class LatticePlanner:
 
         rate = rospy.Rate(30)  # 30hz
 
-        # self.lattice_path_pubs = []
-
-        # for i in range(len(self.lane_off_set)):
-        #     pub = rospy.Publisher(f'/lattice_path_{i}', Path, queue_size=1)
-        #     self.lattice_path_pubs.append(pub)
-
         while not rospy.is_shutdown():
             if self.is_lattice_started:
                 if self.is_path and self.is_odom and self.is_obj: #콜백 함수들 돌아가고 있으면
                     if self.checkObject(self.local_path, self.object_points):
-                        # if self.head_check():
+                        lattice_path = self.latticePlanner(self.local_path, self.odom_msg)
+                        lattice_path_index = self.collision_check(self.object_points, lattice_path)
+                        self.lattice_path_pub.publish(lattice_path[lattice_path_index])
+                    else:
+                        if self.head_check():
+                            self.lattice_path_pub.publish(self.local_path)
+                        else:
                             lattice_path = self.latticePlanner(self.local_path, self.odom_msg)
                             lattice_path_index = self.collision_check(self.object_points, lattice_path)
                             self.lattice_path_pub.publish(lattice_path[lattice_path_index])
-
-                            # # 상대 좌표로 변환된 경로 저장
-                            # relative_lattice_path = []
-                            # for path in lattice_path:
-                            #     relative_path = Path()
-                            #     relative_path.header = path.header
-                            #     relative_path.header.frame_id = 'base_link'  # frame_id를 velodyne으로 설정
-                            #     for pose in path.poses:
-                            #         rel_x, rel_y, rel_z = self.absolute_to_relative(
-                            #             pose.pose.position.x, 
-                            #             pose.pose.position.y, 
-                            #             pose.pose.position.z
-                            #         )
-                            #         rel_pose = PoseStamped()
-                            #         rel_pose.pose.position.x = rel_x
-                            #         rel_pose.pose.position.y = rel_y
-                            #         rel_pose.pose.position.z = rel_z
-                            #         rel_pose.pose.orientation = pose.pose.orientation  # Orientation은 그대로 사용
-                            #         relative_path.poses.append(rel_pose)
-                            #     relative_lattice_path.append(relative_path)
-
-                            # # 상대 좌표 경로를 퍼블리시
-                            # for i, path in enumerate(relative_lattice_path):
-                            #     self.lattice_path_pubs[i].publish(path)
-
-                            # # 절대 좌표 경로 퍼블리시
-                            # for i, path in enumerate(lattice_path):
-                            #     self.lattice_path_pubs[i].publish(path)
-                    else:
-                            self.lattice_path_pub.publish(self.local_path)
                 else:
                     rospy.logwarn("Not enough information to compute lattice path.")
                     self.lattice_path_pub.publish(self.local_path)
@@ -125,17 +94,7 @@ class LatticePlanner:
         # # gps음영 미션 끝
         # elif msg.mission_num != 31 and self.is_1st_slam_started:
         #     self.is_lattice_started = False
-        #     self.is_1st_slam_started = False        
-
-        # # GPS 음영 미션 시작
-        # elif msg.mission_num == 6 and not self.is_2nd_slam_started:
-        #     self.is_lattice_started = True
-        #     self.is_2nd_slam_started = True
-
-        # # gps음영 미션 끝
-        # elif msg.mission_num != 6 and self.is_2nd_slam_started:
-        #     self.is_lattice_started = False
-        #     self.is_2nd_slam_started = False
+        #     self.is_1st_slam_started = False
 
     def checkObject(self, ref_path, object_points):
         is_crash = False
@@ -150,9 +109,8 @@ class LatticePlanner:
 
     def collision_check(self, object_points, out_path):
         selected_lane = 12
-        
-        # lane_weight = [1, 1, 1, 1, 1, 1]  # 원본
-
+        self.lane_weight = [ 4, 3, 2, 1, 1, 2, 3, 4 ]
+        max_weight = 3000
         for point in object_points:
             for path_num in range(len(out_path)):
                 for path_pos in out_path[path_num].poses:
@@ -178,7 +136,10 @@ class LatticePlanner:
                         self.lane_weight[path_num] += 50
                     else: 
                         self.lane_weight[path_num] -= 1
-        
+                    self.lane_weight[path_num] = min(max_weight, self.lane_weight[path_num])
+
+        for i, weight in enumerate(self.lane_weight):
+            rospy.loginfo(f"Lane {i} weight: {weight}")        
         selected_lane = self.lane_weight.index(min(self.lane_weight))
         return selected_lane
 
@@ -247,43 +208,16 @@ class LatticePlanner:
         heading = atan2(2.0 * (orientation.w * orientation.z + orientation.x * orientation.y),
                         1.0 - 2.0 * (orientation.y**2 + orientation.z**2))
         
-        wheel_base = 0  # 차량의 wheel base (m)
+        wheel_base = -3.4  # 차량의 wheel base (m)
         front_axle_x = ego_x + cos(heading) * wheel_base
-        front_axle_y = ego_y + sin(heading) * wheel_base   
+        front_axle_y = ego_y #+ sin(heading) * wheel_base   
         # 변환 행렬을 사용하여 상대 좌표를 절대 좌표로 변환
-        abs_x = front_axle_x + cos(heading) * (rel_x + 1.33) - sin(heading) * rel_y
-        abs_y = front_axle_y + sin(heading) * (rel_x + 1.33) + cos(heading) * rel_y
+        abs_x = front_axle_x + cos(heading) * (rel_x + 0.0) - sin(heading) * rel_y
+        abs_y = front_axle_y + sin(heading) * (rel_x + 0.0) + cos(heading) * rel_y
         abs_z = ego_z + rel_z  # z는 일반적으로 사용되지 않지만 포함
 
         #rospy.loginfo(f"Converted relative position ({rel_x}, {rel_y}, {rel_z}) to absolute position ({abs_x}, {abs_y}, {abs_z}) with heading {heading}")
         return abs_x, abs_y, abs_z
-
-    def absolute_to_relative(self, abs_x, abs_y, abs_z):
-        """
-        장애물의 절대 좌표를 상대 좌표로 변환합니다.
-        """
-        # 차량의 현재 위치와 헤딩 정보를 가져옵니다.
-        ego_x = self.odom_msg.pose.pose.position.x
-        ego_y = self.odom_msg.pose.pose.position.y
-        ego_z = self.odom_msg.pose.pose.position.z
-        
-        # 오리엔테이션에서 헤딩 방향을 계산
-        orientation = self.odom_msg.pose.pose.orientation
-        heading = atan2(2.0 * (orientation.w * orientation.z + orientation.x * orientation.y),
-                        1.0 - 2.0 * (orientation.y**2 + orientation.z**2))
-        
-        wheel_base = 0  # 차량의 wheel base (m)
-        front_axle_x = ego_x + cos(heading) * wheel_base
-        front_axle_y = ego_y + sin(heading) * wheel_base   
-
-        # 절대 좌표를 상대 좌표로 변환
-        rel_x = cos(heading) * (abs_x - front_axle_x) + sin(heading) * (abs_y - front_axle_y) - 1.33
-        rel_y = -sin(heading) * (abs_x - front_axle_x) + cos(heading) * (abs_y - front_axle_y)
-        rel_z = abs_z - ego_z  # z는 일반적으로 사용되지 않지만 포함
-
-        #rospy.loginfo(f"Converted absolute position ({abs_x}, {abs_y}, {abs_z}) to relative position ({rel_x}, {rel_y}, {rel_z}) with heading {heading}")
-        return rel_x, rel_y, rel_z
-
 
 
     def latticePlanner(self, ref_path, vehicle_status):
@@ -296,10 +230,10 @@ class LatticePlanner:
         orientation = vehicle_status.pose.pose.orientation
         heading = atan2(2.0 * (orientation.w * orientation.z + orientation.x * orientation.y),
                         1.0 - 2.0 * (orientation.y**2 + orientation.z**2))
-        wheel_base = -3  # 차량의 wheel base (m)
+        wheel_base = -1  # 차량의 wheel base (m)
      
         # 시작점과 끝점을 차량의 현재 위치 기준으로 정함
-        start_pos = {'x': vehicle_status.pose.pose.position.x +cos(heading) * wheel_base , 'y': vehicle_status.pose.pose.position.y + sin(heading) * wheel_base}
+        start_pos = {'x': vehicle_status.pose.pose.position.x  , 'y': vehicle_status.pose.pose.position.y }
 
         # self.local_path의 마지막 점을 end_pos에 저장하는 코드
         if self.local_path and len(self.local_path.poses) > 0:
@@ -374,6 +308,7 @@ class LatticePlanner:
             out_path.append(lattice_path)
                        
         return out_path
+
 
 if __name__ == '__main__':
     try:

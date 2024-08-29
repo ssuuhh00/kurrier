@@ -12,6 +12,7 @@ from tf.transformations import euler_from_quaternion
 from kurrier.msg import mission, obstacle   # 사용자 정의 메시지 임포트 
 from morai_msgs.srv import MoraiEventCmdSrv
 from enum import Enum
+from std_msgs.msg import Int32MultiArray
 
 class Gear(Enum):
     P = 1
@@ -28,6 +29,7 @@ class pure_pursuit:
         rospy.Subscriber("/mission", mission, self.mission_callback)
         rospy.Subscriber("traffic_light_color", Int16, self.traffic_callback)
         rospy.Subscriber("/check_finish", Bool, self.finish_callback)
+        rospy.Subscriber("/parking_point", Int32MultiArray, self.parking_callback)
 
         self.stop_pub = rospy.Publisher('/is_stop', Bool, queue_size=1)
         self.ctrl_cmd_pub = rospy.Publisher('/ctrl_cmd', CtrlCmd, queue_size=10)
@@ -61,8 +63,13 @@ class pure_pursuit:
         self.mission4_reverse = False
         self.find_parking_zone = True
 
+        self.empty_zone = None
+        self.parking_index = 0
+
+
         self.candidate_parking_zone = [ # 주차 공간 후보
-            (-60.0301, 106.8783),
+            (0, 0),
+            (-59.8301, 106.8783), #(-60.0301, 106.8783)
             (-57.7333, 106.8861),
             (-55.3948, 107.0587),
             (-53.2484, 106.8793),
@@ -90,7 +97,8 @@ class pure_pursuit:
             (-2.5805, 106.9342),
             (-0.2581, 106.9435),
             (1.98631, 106.9997),
-            (4.29672, 106.9429)
+            (4.29672, 106.9429),
+            (1, 1)
         ]
 
         # 기어 변경 서비스 설정
@@ -138,12 +146,13 @@ class pure_pursuit:
                     if self.mission_info.mission_num == 4:
                         #############################
                         if self.mission4_forward: # 직진하면서 주차 공간 찾기
-                            end_point = [0, 109] # 주차 공간 끝 지점
+                            # end_point = [3, 109] # 주차 공간 끝 지점 right path
+                            end_point = [3, 111] # center path
                             self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)
                             self.ctrl_cmd_msg.velocity = default_vel
                             self.ctrl_cmd_pub.publish(self.ctrl_cmd_msg)
                             distance_1 = sqrt((vehicle_position.x - end_point[0])**2 + (vehicle_position.y - end_point[1])**2)
-                            if distance_1 < 3.0: # 끝 지점이랑 현재 차량 위치 거리가 3.0 미만이 되면
+                            if distance_1 < 2.0: # 끝 지점이랑 현재 차량 위치 거리가 3.0 미만이 되면
                                 self.stop_vehicle() # 정지
                                 self.mission4_forward = False # 직진하면서 주차 공간 찾는거 중지
                                 self.mission4_reverse = True # 다시 주차 시작 위치로 복귀
@@ -152,9 +161,14 @@ class pure_pursuit:
                             self.reverse_mode() # 리버스 모드로
                             self.find_parking_zone = False # 리버스 모드로 시작 위치로 돌아가게 되면 주차 공간 찾아서 위치로 가기
                         elif not self.find_parking_zone:
-                            parking_zone = [-34.5, 109] # 주차 공간 예시, 처음에 주차 공간 찾은 구역이 입력으로 들어감
+                            #parking_zone_find = self.candidate_parking_zone[self.parking_index]
+                            #parking_zone = [parking_zone_find[0] - 4.5, 109] # right path
+                            #parking_zone = [parking_zone_find[0] - 4.5, 111] # center path
+                            parking_zone_find = self.candidate_parking_zone[3]
+                            parking_zone = [parking_zone_find[0] - 4.5, 111]
+                            rospy.loginfo("go parking point : {}".format(parking_zone))
                             distance_2 = sqrt((vehicle_position.x - parking_zone[0])**2 + (vehicle_position.y - parking_zone[1])**2)
-                            if distance_2 < 3.0:
+                            if distance_2 < 2.5:
                                 self.stop_vehicle()
                                 self.find_parking_zone = True
                             else:
@@ -225,7 +239,7 @@ class pure_pursuit:
                         elif self.mission_info.mission_num == 1 or  self.mission_info.mission_num == 51:
                             self.ctrl_cmd_msg.velocity = default_vel_m1m51 * (1.0 - (self.obstacle.collision_probability / 100)) * (1 - 0.6 * normalized_steer)
                         else:
-                            self.ctrl_cmd_msg.velocity = default_vel
+                            self.ctrl_cmd_msg.velocity = default_vel* (1 - 0.6 * normalized_steer)
 
                 else:
                     rospy.loginfo_once("No forward point found")
@@ -305,44 +319,57 @@ class pure_pursuit:
         rospy.sleep(6)
         self.ctrl_cmd_msg.brake = 0
 
+    def parking_callback(self, msg):
+        # Extract the data from the message
+        self.empty_zone = msg.data
+        self.parking_index = self.empty_zone[0]
+
+#        if (self.empty_zone[-1] == len(self.empty_zone) - 1):
+#            self.parking_index = self.empty_zone[1]
+#        else:
+#            self.parking_index = self.empty_zone[-1] # ori
+
+            #self.parking_index = self.empty_zone[1]
 
     def parking_mode(self):
         rospy.loginfo("Starting parking maneuver")
         # 전진: 기어 D로 변경 후 5초 동안 전진
         if self.send_gear_cmd(Gear.D.value):
-            self.set_velocity_and_steering(5.0, 40, 6)
+            #self.set_velocity_and_steering(5.0, 40, 5) #6 right path
+            self.set_velocity_and_steering(5.0, 40, 4.5) # center path
             self.stop_vehicle()
 
-        rospy.sleep(2)  # 명령 후 추가 대기
+        rospy.sleep(1)  # 명령 후 추가 대기
 
         # 후진: 기어 R로 변경 후 1초 동안 조향 각도 -40도
         if self.send_gear_cmd(Gear.R.value):
             rospy.sleep(1)
-            self.set_velocity_and_steering(5.0, -40, 0.5)
+            #self.set_velocity_and_steering(5.0, -40, 0.5) #0.8 right path
+            self.set_velocity_and_steering(5.0, -40, 1.1)
             self.stop_vehicle()
 
-        rospy.sleep(2)  # 명령 후 추가 대기
+        rospy.sleep(1)  # 명령 후 추가 대기
 
         # 후진: 기어 R 상태에서 6초 동안 조향 각도 0도로 후진
-        self.set_velocity_and_steering(5.0, 0, 7)
+        self.set_velocity_and_steering(5.0, 0, 6.5) #7
         self.stop_vehicle()
 
-        rospy.sleep(2)  # 명령 후 추가 대기
+        rospy.sleep(1)  # 명령 후 추가 대기
 
         # 정지: 기어 P로 변경
         if self.send_gear_cmd(Gear.P.value):
             self.stop_vehicle()
 
-        rospy.sleep(2)
+        rospy.sleep(1)
 
         if self.send_gear_cmd(Gear.D.value):
             self.set_velocity_and_steering(5.0, 0, 2)
             self.stop_vehicle()
 
-        rospy.sleep(2)
+        rospy.sleep(1)
 
         if self.send_gear_cmd(Gear.D.value):
-            self.set_velocity_and_steering(5.0, -40, 5.5)
+            self.set_velocity_and_steering(5.0, -40, 5)
             self.stop_vehicle()
 
         rospy.loginfo("Parking maneuver completed")
@@ -352,10 +379,10 @@ class pure_pursuit:
         rospy.loginfo("reverse path")
         if self.send_gear_cmd(Gear.R.value):
             rospy.sleep(1)
-            self.set_velocity_and_steering(10.0, 0.0, 30)
+            self.set_velocity_and_steering(10.0, 0.0, 28)
             self.stop_vehicle() 
         
-        rospy.sleep(2)
+        rospy.sleep(1)
 
         if self.send_gear_cmd(Gear.D.value):
             self.stop_vehicle()
