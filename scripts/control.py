@@ -63,7 +63,7 @@ class pure_pursuit:
         self.is_stopped = False
         self.M7_complete = False
 
-
+        self.cnt = 0
         rospy.Subscriber("/liorf/mapping/odometry", Odometry, self.slam_imu_callback)
         # slam 상태비교를 위한 초기화
         self.slam_status = True
@@ -204,10 +204,11 @@ class pure_pursuit:
                         
                         if self.mission_info.count == 1:
                             self.stop_vehicle_slam()
+                            self.cnt += 1
                         else:
                             self.ctrl_cmd_msg.velocity = default_vel * (1 - 0.6 * normalized_steer)
                             self.is_stopped = False
-                    if self.slam_check():
+                    if self.slam_check() and self.cnt > 90:
                         self.local_path = self.generate_local_path(self.odom_msg)
                         if self.is_obj:
                             if self.checkObject2(self.local_path, self.object_points):
