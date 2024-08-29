@@ -12,7 +12,6 @@ from kurrier.msg import mission  # 사용자 정의 메시지 임포트
 from geometry_msgs.msg import Quaternion
 import tf
 
-
 class LatticePlanner:
     def __init__(self):
         rospy.init_node('lattice_planner', anonymous=True)
@@ -35,7 +34,6 @@ class LatticePlanner:
         self.local_path = None
         self.lattice_path = None
         self.is_odom=False
-
 
         self.index = 18  # 경로 생성 끝점
 
@@ -76,7 +74,7 @@ class LatticePlanner:
                         else:
                             # if self.head_check():
                                 # self.lattice_path_pub.publish(self.local_path)
-                                self.local_path_pub.publish(self.local_path)
+                            self.lattice_path_pub.publish(self.local_path)
                             # else:
                             #     lattice_path = self.latticePlanner(self.local_path, self.odom_msg)
                             #     lattice_path_index = self.collision_check(self.object_points, lattice_path)
@@ -85,9 +83,9 @@ class LatticePlanner:
                     #     rospy.logwarn("Not enough information to compute lattice path.")
                     #     self.lattice_path_pub.publish(self.local_path)
                 else:
-                    if self.local_path is not None:
+                    #if self.local_path is not None:
                         # self.lattice_path_pub.publish(self.local_path)
-                        self.local_path_pub.publish(self.local_path)
+                    self.lattice_path_pub.publish(self.local_path)
                 rate.sleep()
 
     def mission_callback(self, msg):
@@ -326,7 +324,7 @@ class LatticePlanner:
         path.header.frame_id = 'map'
 
         # The number of points (steps) in the path
-        num_points = 20
+        num_points = 30
 
         # Interval between points in meters
         interval = 0.3
