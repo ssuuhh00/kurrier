@@ -208,31 +208,31 @@ class pure_pursuit:
                         else:
                             self.ctrl_cmd_msg.velocity = default_vel * (1 - 0.6 * normalized_steer)
                             self.is_stopped = False
-                    if self.slam_check() and self.cnt > 90:
-                        self.local_path = self.generate_local_path(self.odom_msg)
-                        if self.is_obj:
-                            if self.checkObject2(self.local_path, self.object_points):
-                                lattice_path = self.latticePlanner2(self.local_path, self.odom_msg)
-                                lattice_path_index = self.collision_check2(self.object_points, lattice_path)
-                                self.lattice_path_pub.publish(lattice_path[lattice_path_index])
-                            else:
-                                self.lattice_path_pub.publish(self.local_path)
+                    # if self.slam_check() and self.cnt > 90:
+                    #     self.local_path = self.generate_local_path(self.odom_msg)
+                    #     if self.is_obj:
+                    #         if self.checkObject2(self.local_path, self.object_points):
+                    #             lattice_path = self.latticePlanner2(self.local_path, self.odom_msg)
+                    #             lattice_path_index = self.collision_check2(self.object_points, lattice_path)
+                    #             self.lattice_path_pub.publish(lattice_path[lattice_path_index])
+                    #         else:
+                    #             self.lattice_path_pub.publish(self.local_path)
 
-                        # path의 절반 지점 찾기
-                        mid_index = len(self.path.poses) // 2
-                        mid_pose = self.path.poses[mid_index].pose.position
+                    #     # path의 절반 지점 찾기
+                    #     mid_index = len(self.path.poses) // 2
+                    #     mid_pose = self.path.poses[mid_index].pose.position
 
-                        # local_path_point 설정
-                        local_path_point = [mid_pose.x, mid_pose.y]
+                    #     # local_path_point 설정
+                    #     local_path_point = [mid_pose.x, mid_pose.y]
 
-                        theta = atan2(local_path_point[1], local_path_point[0])
+                    #     theta = atan2(local_path_point[1], local_path_point[0])
                         
-                        default_vel = 4
+                    #     default_vel = 4
 
-                        # steering
-                        self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)
-                        normalized_steer = abs(self.ctrl_cmd_msg.steering) / 0.6981
-                        self.ctrl_cmd_msg.velocity = default_vel * (1 - 0.7 * normalized_steer)
+                    #     # steering
+                    #     self.ctrl_cmd_msg.steering = atan2(2.0 * self.vehicle_length * sin(theta), self.lfd)
+                    #     normalized_steer = abs(self.ctrl_cmd_msg.steering) / 0.6981
+                    #     self.ctrl_cmd_msg.velocity = default_vel * (1 - 0.7 * normalized_steer)
                 else:
                     if self.is_look_forward_point:
                         if self.mission_info.mission_num == 4:
