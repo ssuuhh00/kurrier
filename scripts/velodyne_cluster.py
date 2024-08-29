@@ -9,6 +9,7 @@ from std_msgs.msg import Header
 import sensor_msgs.point_cloud2 as pc2
 from sklearn.cluster import DBSCAN
 from kurrier.msg import mission  # 사용자 정의 메시지 임포트
+from sklearn.linear_model import RANSACRegressor
 
 class SCANCluster:
     def __init__(self):
@@ -24,6 +25,8 @@ class SCANCluster:
         self.pc_np = self.pointcloud2_to_xyz(msg)
         if len(self.pc_np) == 0:
             return
+        # RANSAC을 통해 평면상의 포인트들을 제거
+        #self.pc_np = self.apply_ransac(self.pc_np)
 
         # 거리별로 클러스터링 수행
         cluster_points = []
@@ -48,6 +51,19 @@ class SCANCluster:
 
     def mission_callback(self, msg):
         self.mission_info = msg
+    
+    def apply_ransac(self, points):
+        """
+        RANSAC 알고리즘을 사용하여 평면상의 포인트들을 제거합니다.
+        """
+        X = points[:, :3]  # x, y, z 좌표
+        ransac = RANSACRegressor(residual_threshold=0.05)
+        ransac.fit(X[:, :2], X[:, 2])  # x, y를 독립 변수, z를 종속 변수로 사용
+        inlier_mask = ransac.inlier_mask_
+
+        # 인라이어(평면에 속하는 포인트들)를 제거하고 아웃라이어만 반환
+        filtered_points = points[~inlier_mask]
+        return filtered_points
 
     def get_dbscan_params_by_distance(self):
         """
@@ -62,16 +78,18 @@ class SCANCluster:
             }
         else:
             return {
-                (0, 5): {'eps': 0.3, 'min_samples': 30},  # 0m ~ 5m 거리
-                (5, 10): {'eps': 0.2, 'min_samples': 15},  # 5m ~ 10m 거리
-                (10, 15): {'eps': 0.3, 'min_samples': 10},  # 10m ~ 15m 거리
+                (0, 5): {'eps': 0.15, 'min_samples': 30},
+                (0, 10): {'eps': 0.2, 'min_samples': 25},  # 0m ~ 1m 거리
+                (10, 15): {'eps': 0.3, 'min_samples': 20},
+                (0, 20): {'eps': 0.45, 'min_samples': 15},  # 1m ~ 20m 거리
+                #(10, 15): {'eps': 0.3, 'min_samples': 10},  # 10m ~ 15m 거리
                 # 필요에 따라 더 많은 거리 범위를 추가할 수 있습니다.
             }
 
     def publish_point_cloud(self, points):
         header = Header()
         header.stamp = rospy.Time.now()
-        header.frame_id = "velodyne"
+        header.frame_id = "base_link"
 
         fields = [
             PointField('x', 0, PointField.FLOAT32, 1),
@@ -95,7 +113,7 @@ class SCANCluster:
                 if point[0] > 0 and -5 < point[1] < 5 and (dist < 15) and (-1.4 < point[2] < 0):
                     point_list.append((point[0], point[1], point[2], point[3], dist, angle))
             else:
-                if point[0] > -1 and -5 < point[1] < 5 and (dist < 15) and (-1.3 < point[2] < 0.1):
+                if point[0] > -0.5 and -5 < point[1] < 5 and (1.3 < dist < 17) and (-1.33 < point[2] < 0.2):
                     point_list.append((point[0], point[1], point[2], point[3], dist, angle))
 
         point_np = np.array(point_list, np.float32)
