@@ -30,8 +30,6 @@ class LatticePlanner:
         self.local_path = None
         self.is_odom=False
 
-        self.is_M2 = False
-
         self.index = 16  # 경로 생성 끝점
 
         base_offset = 1.45 * 0.3 * 20  # 인덱스 1당 30cm의 증가율 적용
@@ -116,19 +114,18 @@ class LatticePlanner:
         if msg.mission_num == 2 and not self.is_lattice_started:
             self.is_lattice_started = True
         # 정적장애물 미션 끝
-        elif msg.mission_num != 2 and self.is_lattice_started:# and not self.is_M2:
+        elif msg.mission_num != 2 and self.is_lattice_started:
             self.is_lattice_started = False
-            # self.is_M2 = True
         
-        # # GPS 음영 미션 시작
-        # elif msg.mission_num == 3 and not self.is_1st_slam_started:
-        #     self.is_lattice_started = True
-        #     self.is_1st_slam_started = True
+        # GPS 음영 미션 시작
+        elif msg.mission_num == 31 and not self.is_1st_slam_started:
+            self.is_lattice_started = True
+            self.is_1st_slam_started = True
 
-        # # gps음영 미션 끝
-        # elif msg.mission_num != 3 and self.is_1st_slam_started:
-        #     self.is_lattice_started = False
-        #     self.is_1st_slam_started = False        
+        # gps음영 미션 끝
+        elif msg.mission_num != 31 and self.is_1st_slam_started:
+            self.is_lattice_started = False
+            self.is_1st_slam_started = False        
 
         # # GPS 음영 미션 시작
         # elif msg.mission_num == 6 and not self.is_2nd_slam_started:
