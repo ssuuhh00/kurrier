@@ -61,7 +61,6 @@ class pure_pursuit:
         self.mission4_reverse = False
         self.find_parking_zone = True
 
-
         self.candidate_parking_zone = [ # 주차 공간 후보
             (-60.0301, 106.8783),
             (-57.7333, 106.8861),

@@ -32,6 +32,7 @@ class TFNode:
         self.is_2nd_slam_started = False
         self.initial_yaw = None
         self.start_position = Odometry()   #slam 초기 위치
+        self.is_real_gps_shaded = False
 
         self.proj_UTM = Proj(proj='utm',zone=52, ellps='WGS84', preserve_units=False)
 
@@ -48,24 +49,26 @@ class TFNode:
                     self.odom_pub.publish(self.odom_msg)
                 self.is_gps = self.is_imu = False
             elif (self.is_1st_slam_started or self.is_2nd_slam_started):
-            # if self.lon == 0 and self.lat == 0:
-                if (self.start_position is not None) and (self.initial_yaw is not None):
-                    # SLAM으로부터 받은 차량의 로컬 좌표 위치를 저장
-                    x1 = self.odom_slam_msg.pose.pose.position.x
-                    y1 = self.odom_slam_msg.pose.pose.position.y
-                    # # 라이다 gps 센서 위치 차이보정
-                    x1 += 1.33
-                    # 위치 설정
-                    self.odom_msg.pose.pose.position.x = self.start_position.pose.pose.position.x + cos(self.initial_yaw) * x1 - sin(self.initial_yaw) * y1
-                    self.odom_msg.pose.pose.position.y = self.start_position.pose.pose.position.y + sin(self.initial_yaw) * x1 + cos(self.initial_yaw) * y1
-                    self.odom_msg.pose.pose.position.z = self.start_position.pose.pose.position.z
+                if self.is_real_gps_shaded:
+                    if (self.start_position is not None) and (self.initial_yaw is not None):
+                        # SLAM으로부터 받은 차량의 로컬 좌표 위치를 저장
+                        x1 = self.odom_slam_msg.pose.pose.position.x
+                        y1 = self.odom_slam_msg.pose.pose.position.y
+                        # # 라이다 gps 센서 위치 차이보정
+                        x1 += 1.33
+                        # 위치 설정
+                        self.odom_msg.pose.pose.position.x = self.start_position.pose.pose.position.x + cos(self.initial_yaw) * x1 - sin(self.initial_yaw) * y1
+                        self.odom_msg.pose.pose.position.y = self.start_position.pose.pose.position.y + sin(self.initial_yaw) * x1 + cos(self.initial_yaw) * y1
+                        self.odom_msg.pose.pose.position.z = self.start_position.pose.pose.position.z
+                        self.odom_pub.publish(self.odom_msg)
+                        rospy.loginfo("in slam mission and using slam localization")
+                        # self.odom_start_pub.publish(self.start_position)
+                    else:
+                        rospy.loginfo("start_position or initial_yaw is None")
+                else:
+                    rospy.loginfo("in slam mission but using gps")
+                    self.convertLL2UTM()
                     self.odom_pub.publish(self.odom_msg)
-                    # self.odom_start_pub.publish(self.start_position)
-                else: 
-                    rospy.loginfo("start_position or initial_yaw is None")
-            # else:
-            #     self.convertLL2UTM()
-            #     self.odom_pub.publish(self.odom_msg)
             rate.sleep()
 
     def get_yaw(self):    
@@ -80,7 +83,7 @@ class TFNode:
             _, _, heading = euler_from_quaternion(orientation)
             return heading
 
-    def convertLL2UTM(self):    
+    def convertLL2UTM(self):
         xy_zone = self.proj_UTM(self.lon, self.lat)
 
         if self.lon == 0 and self.lat == 0:
@@ -96,14 +99,19 @@ class TFNode:
         self.odom_msg.pose.pose.position.z = self.z
 
     def navsat_callback(self, gps_msg):
-        if not (self.is_1st_slam_started or self.is_2nd_slam_started):
-            self.lat = gps_msg.latitude
-            self.lon = gps_msg.longitude
-            self.e_o = gps_msg.eastOffset
-            self.n_o = gps_msg.northOffset
-            self.z = gps_msg.altitude
-            
-            self.is_gps=True
+    # if not (self.is_1st_slam_started or self.is_2nd_slam_started):
+        self.lat = gps_msg.latitude
+        self.lon = gps_msg.longitude
+        self.e_o = gps_msg.eastOffset
+        self.n_o = gps_msg.northOffset
+        self.z = gps_msg.altitude
+        
+        self.is_gps=True
+
+        if self.lon == 0 and self.lat == 0:
+            self.is_real_gps_shaded = True
+        else:
+            self.is_real_gps_shaded = False
 
     def imu_callback(self, data):
         if data.orientation.w == 0:
