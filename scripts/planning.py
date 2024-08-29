@@ -14,7 +14,7 @@ class planning :
         rospy.Subscriber("/odom", Odometry, self.odom_callback)
         self.local_path_pub = rospy.Publisher('/local_path',Path, queue_size=1)
         self.global_path_msg=Path()
-        self.global_path_msg.header.frame_id='/base_link'
+        self.global_path_msg.header.frame_id='/map'
         
         self.is_odom=False
         self.local_path_size=50
@@ -39,7 +39,7 @@ class planning :
    
             if self.is_odom == True:
                 local_path_msg=Path()
-                local_path_msg.header.frame_id='/base_link'
+                local_path_msg.header.frame_id='/map'
                 
                 x=self.x
                 y=self.y

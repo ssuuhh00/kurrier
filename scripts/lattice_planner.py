@@ -59,61 +59,55 @@ class LatticePlanner:
 
         rate = rospy.Rate(30)  # 30hz
 
-        self.lattice_path_pubs = []
+        # self.lattice_path_pubs = []
 
-        for i in range(len(self.lane_off_set)):
-            pub = rospy.Publisher(f'/lattice_path_{i}', Path, queue_size=1)
-            self.lattice_path_pubs.append(pub)
+        # for i in range(len(self.lane_off_set)):
+        #     pub = rospy.Publisher(f'/lattice_path_{i}', Path, queue_size=1)
+        #     self.lattice_path_pubs.append(pub)
 
         while not rospy.is_shutdown():
             if self.is_lattice_started:
-                if self.is_path and self.is_odom and self.is_obj: 
-                    if self.checkObject(self.local_path, self.object_points) or self.head_check(): 
-                        lattice_path = self.latticePlanner(self.local_path, self.odom_msg)
-                        lattice_path_index = self.collision_check(self.object_points, lattice_path)
+                if self.is_path and self.is_odom and self.is_obj: #콜백 함수들 돌아가고 있으면
+                    if self.checkObject(self.local_path, self.object_points):
+                        # if self.head_check():
+                            lattice_path = self.latticePlanner(self.local_path, self.odom_msg)
+                            lattice_path_index = self.collision_check(self.object_points, lattice_path)
+                            self.lattice_path_pub.publish(lattice_path[lattice_path_index])
 
-                        # 상대 좌표로 변환된 경로 저장
-                        relative_lattice_path = []
-                        for path in lattice_path:
-                            relative_path = Path()
-                            relative_path.header = path.header
-                            relative_path.header.frame_id = 'base_link'  # frame_id를 velodyne으로 설정
-                            for pose in path.poses:
-                                rel_x, rel_y, rel_z = self.absolute_to_relative(
-                                    pose.pose.position.x, 
-                                    pose.pose.position.y, 
-                                    pose.pose.position.z
-                                )
-                                rel_pose = PoseStamped()
-                                rel_pose.pose.position.x = rel_x
-                                rel_pose.pose.position.y = rel_y
-                                rel_pose.pose.position.z = rel_z
-                                rel_pose.pose.orientation = pose.pose.orientation  # Orientation은 그대로 사용
-                                relative_path.poses.append(rel_pose)
-                            relative_lattice_path.append(relative_path)
+                            # # 상대 좌표로 변환된 경로 저장
+                            # relative_lattice_path = []
+                            # for path in lattice_path:
+                            #     relative_path = Path()
+                            #     relative_path.header = path.header
+                            #     relative_path.header.frame_id = 'base_link'  # frame_id를 velodyne으로 설정
+                            #     for pose in path.poses:
+                            #         rel_x, rel_y, rel_z = self.absolute_to_relative(
+                            #             pose.pose.position.x, 
+                            #             pose.pose.position.y, 
+                            #             pose.pose.position.z
+                            #         )
+                            #         rel_pose = PoseStamped()
+                            #         rel_pose.pose.position.x = rel_x
+                            #         rel_pose.pose.position.y = rel_y
+                            #         rel_pose.pose.position.z = rel_z
+                            #         rel_pose.pose.orientation = pose.pose.orientation  # Orientation은 그대로 사용
+                            #         relative_path.poses.append(rel_pose)
+                            #     relative_lattice_path.append(relative_path)
 
-                        # 상대 좌표 경로를 퍼블리시
-                        for i, path in enumerate(relative_lattice_path):
-                            self.lattice_path_pubs[i].publish(path)
+                            # # 상대 좌표 경로를 퍼블리시
+                            # for i, path in enumerate(relative_lattice_path):
+                            #     self.lattice_path_pubs[i].publish(path)
 
-                        # 절대 좌표 경로 퍼블리시
-                        for i, path in enumerate(lattice_path):
-                            path.header.frame_id = 'base_link'  # frame_id를 velodyne으로 설정
-                            self.lattice_path_pubs[i].publish(path)
-
-                        self.lattice_path_pub.publish(lattice_path[lattice_path_index])
+                            # # 절대 좌표 경로 퍼블리시
+                            # for i, path in enumerate(lattice_path):
+                            #     self.lattice_path_pubs[i].publish(path)
                     else:
-                        if self.local_path is not None:
-                            self.local_path.header.frame_id = 'base_link'  # frame_id를 velodyne으로 설정
                             self.lattice_path_pub.publish(self.local_path)
                 else:
                     rospy.logwarn("Not enough information to compute lattice path.")
-                    if self.local_path is not None:
-                        self.local_path.header.frame_id = 'base_link'  # frame_id를 velodyne으로 설정
-                        self.lattice_path_pub.publish(self.local_path)
+                    self.lattice_path_pub.publish(self.local_path)
             else:
                 if self.local_path is not None:
-                    self.local_path.header.frame_id = 'base_link'  # frame_id를 velodyne으로 설정
                     self.lattice_path_pub.publish(self.local_path)
             rate.sleep()
 
@@ -122,20 +116,20 @@ class LatticePlanner:
         if msg.mission_num == 2 and not self.is_lattice_started:
             self.is_lattice_started = True
         # 정적장애물 미션 끝
-        elif msg.mission_num != 2 and self.is_lattice_started and not self.is_M2:
+        elif msg.mission_num != 2 and self.is_lattice_started:# and not self.is_M2:
             self.is_lattice_started = False
-            self.is_M2 = True
+            # self.is_M2 = True
         
-        # GPS 음영 미션 시작
-        elif msg.mission_num == 3 and not self.is_1st_slam_started:
-            self.is_lattice_started = True
-            self.is_1st_slam_started = True
+        # # GPS 음영 미션 시작
+        # elif msg.mission_num == 3 and not self.is_1st_slam_started:
+        #     self.is_lattice_started = True
+        #     self.is_1st_slam_started = True
 
-        # gps음영 미션 끝
-        elif msg.mission_num != 3 and self.is_1st_slam_started:
-            self.is_lattice_started = False
-            self.is_1st_slam_started = False        
-            
+        # # gps음영 미션 끝
+        # elif msg.mission_num != 3 and self.is_1st_slam_started:
+        #     self.is_lattice_started = False
+        #     self.is_1st_slam_started = False        
+
         # # GPS 음영 미션 시작
         # elif msg.mission_num == 6 and not self.is_2nd_slam_started:
         #     self.is_lattice_started = True

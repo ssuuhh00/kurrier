@@ -21,7 +21,6 @@ class YoloNode:
         self.obstacle_pub = rospy.Publisher("/obstacle_info", obstacle, queue_size=5)  # 새로운 퍼블리셔
         self.traffic_color_pub = rospy.Publisher("/traffic_light_color", Int16, queue_size=10 )
         
-        
         self.bridge = CvBridge()
         self.roi_image_pub = rospy.Publisher("/roi_visualization", Image, queue_size=5)  # ROI 시각화 퍼블리셔 추가
 

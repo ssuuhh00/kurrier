@@ -134,7 +134,7 @@ class pure_pursuit:
 
                 theta = atan2(local_path_point[1], local_path_point[0])
                 default_vel = 10
-                default_vel_m1m51 = 15
+                default_vel_m1m51 = 10
                 if self.is_look_forward_point:
                     if self.mission_info.mission_num == 4:
                         #############################

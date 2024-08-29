@@ -21,7 +21,7 @@ class TFNode:
         rospy.Subscriber("/is_stop", Bool, self.stop_callback)
 
         self.odom_pub = rospy.Publisher('/odom',Odometry, queue_size=1)
-        self.odom_start_pub = rospy.Publisher('/odom_slam_start',Odometry, queue_size=1)
+        # self.odom_start_pub = rospy.Publisher('/odom_slam_start',Odometry, queue_size=1)
 
         # 초기화
         self.x, self.y = None, None
@@ -30,7 +30,6 @@ class TFNode:
         self.is_stopped = False
         self.is_1st_slam_started = False
         self.is_2nd_slam_started = False
-        self.is_slam_odom = False
         self.initial_yaw = None
         self.start_position = Odometry()   #slam 초기 위치
 
@@ -48,7 +47,8 @@ class TFNode:
                     self.convertLL2UTM()
                     self.odom_pub.publish(self.odom_msg)
                 self.is_gps = self.is_imu = False
-            elif (self.is_1st_slam_started or self.is_2nd_slam_started) and self.is_slam_odom:
+            elif (self.is_1st_slam_started or self.is_2nd_slam_started):
+            # if self.lon == 0 and self.lat == 0:
                 if (self.start_position is not None) and (self.initial_yaw is not None):
                     # SLAM으로부터 받은 차량의 로컬 좌표 위치를 저장
                     x1 = self.odom_slam_msg.pose.pose.position.x
@@ -60,10 +60,12 @@ class TFNode:
                     self.odom_msg.pose.pose.position.y = self.start_position.pose.pose.position.y + sin(self.initial_yaw) * x1 + cos(self.initial_yaw) * y1
                     self.odom_msg.pose.pose.position.z = self.start_position.pose.pose.position.z
                     self.odom_pub.publish(self.odom_msg)
-                    self.odom_start_pub.publish(self.start_position)
+                    # self.odom_start_pub.publish(self.start_position)
                 else: 
                     rospy.loginfo("start_position or initial_yaw is None")
-                self.is_slam_odom = False
+            # else:
+            #     self.convertLL2UTM()
+            #     self.odom_pub.publish(self.odom_msg)
             rate.sleep()
 
     def get_yaw(self):    
@@ -121,7 +123,6 @@ class TFNode:
 
     def liorf_callback(self, msg):
         self.odom_slam_msg = msg
-        self.is_slam_odom = True
 
     def mission_callback(self, msg):
         # GPS 음영 미션 시작
