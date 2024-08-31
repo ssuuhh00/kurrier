@@ -1,7 +1,7 @@
 # KURRIER
 
 실행
-
+    roslaunch rosbridge_server rosbridge_websocket.launch
     roslaunch kurrier kurrier.launch
 
 미션
@@ -21,8 +21,7 @@
 
 할 일
     
-    cityhall_path 다시 따기
-
+    cityhall_path 따기
         미션1 선두차량이 카메라 가운데 나오게(지금 연석 밟으면서 우회전 함)
         미션2 가운데로
         미션3 협로 가운데로 or 협로말고 전체 가운데로
@@ -58,3 +57,7 @@
     래티스 튜닝
     전부 합치기
     미션2번 너무 늦게 변함
+
+0830
+
+    **우수상**
